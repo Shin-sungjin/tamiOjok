@@ -33,6 +33,12 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/from-cart")
+    public ResponseEntity<OrderResponse> createOrderFromCart(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        OrderResponse response = orderService.createOrderFromCart(userDetails.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @GetMapping
     public ResponseEntity<Page<OrderResponse>> getMyOrders(@AuthenticationPrincipal CustomUserDetails userDetails,
                                                              Pageable pageable) {

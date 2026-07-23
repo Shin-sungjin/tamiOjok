@@ -1,5 +1,8 @@
 package com.example.ecommerce.domain.order.service;
 
+import com.example.ecommerce.domain.cart.entity.Cart;
+import com.example.ecommerce.domain.cart.entity.CartItem;
+import com.example.ecommerce.domain.cart.repository.CartRepository;
 import com.example.ecommerce.domain.delivery.entity.Delivery;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
@@ -34,6 +37,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final StockService stockService;
     private final DeliveryRepository deliveryRepository;
+    private final CartRepository cartRepository;
 
     @Transactional
     public OrderResponse createOrder(Long userId, OrderCreateRequest request) {
@@ -48,6 +52,34 @@ public class OrderService {
             stockService.reserve(itemRequest.productId(), itemRequest.quantity());
         }
 
+        return OrderResponse.from(saveOrder(user, orderItems));
+    }
+
+    @Transactional
+    public OrderResponse createOrderFromCart(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Cart cart = cartRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.EMPTY_CART));
+        if (cart.getCartItems().isEmpty()) {
+            throw new CustomException(ErrorCode.EMPTY_CART);
+        }
+
+        List<OrderItem> orderItems = cart.getCartItems().stream()
+                .map(this::toOrderItem)
+                .toList();
+
+        for (CartItem cartItem : cart.getCartItems()) {
+            stockService.reserve(cartItem.getProduct().getId(), cartItem.getQuantity());
+        }
+
+        OrderResponse response = OrderResponse.from(saveOrder(user, orderItems));
+        cart.clear();
+        return response;
+    }
+
+    private Order saveOrder(User user, List<OrderItem> orderItems) {
         BigDecimal totalAmount = orderItems.stream()
                 .map(OrderItem::getLineTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -60,7 +92,7 @@ public class OrderService {
                 .orderItems(orderItems)
                 .build();
 
-        return OrderResponse.from(orderRepository.save(order));
+        return orderRepository.save(order);
     }
 
     public OrderResponse getMyOrder(Long userId, Long orderId) {
@@ -134,6 +166,15 @@ public class OrderService {
                 .product(product)
                 .orderPrice(product.getPrice())
                 .quantity(itemRequest.quantity())
+                .build();
+    }
+
+    private OrderItem toOrderItem(CartItem cartItem) {
+        Product product = cartItem.getProduct();
+        return OrderItem.builder()
+                .product(product)
+                .orderPrice(product.getPrice())
+                .quantity(cartItem.getQuantity())
                 .build();
     }
 
