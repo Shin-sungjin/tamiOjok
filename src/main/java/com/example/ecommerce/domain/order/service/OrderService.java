@@ -76,7 +76,15 @@ public class OrderService {
     public void cancelOrder(Long userId, Long orderId) {
         Order order = getOrderOrThrow(orderId);
         validateOwnership(order, userId);
+        cancelAndRelease(order);
+    }
 
+    @Transactional
+    public void cancelBySystem(Long orderId) {
+        cancelAndRelease(getOrderOrThrow(orderId));
+    }
+
+    private void cancelAndRelease(Order order) {
         boolean shouldRestoreStock = order.isCancellableWithStockReturn();
         order.cancel();
 
@@ -87,6 +95,10 @@ public class OrderService {
                 stockService.releaseReservation(item.getProduct().getId(), item.getQuantity());
             }
         }
+    }
+
+    public Order getOrderEntityOrThrow(Long orderId) {
+        return getOrderOrThrow(orderId);
     }
 
     @Transactional
