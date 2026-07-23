@@ -20,7 +20,11 @@ public enum ErrorCode {
     ORDER_ALREADY_SHIPPED(HttpStatus.CONFLICT, "이미 배송이 시작되어 취소할 수 없습니다. 반품/교환을 이용해주세요."),
     PAYMENT_NOT_ALLOWED(HttpStatus.CONFLICT, "결제 대기 상태의 주문이 아닙니다."),
     PAYMENT_ALREADY_PROCESSED(HttpStatus.CONFLICT, "이미 처리된 결제입니다."),
-    PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "결제 내역을 찾을 수 없습니다.");
+    PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "결제 내역을 찾을 수 없습니다."),
+    DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "배송 정보를 찾을 수 없습니다."),
+    DELIVERY_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 배송이 등록된 주문입니다."),
+    INVALID_DELIVERY_STATUS_TRANSITION(HttpStatus.CONFLICT, "현재 배송 상태에서는 처리할 수 없습니다."),
+    RETURN_NOT_ALLOWED(HttpStatus.CONFLICT, "배송 시작 전이거나 이미 반품 요청된 주문입니다.");
 
     private final HttpStatus status;
     private final String message;
