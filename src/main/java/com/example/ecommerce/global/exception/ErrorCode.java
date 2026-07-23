@@ -10,7 +10,9 @@ public enum ErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
     EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "리프레시 토큰이 만료되었습니다."),
     NEED_ADDITIONAL_INFO(HttpStatus.FORBIDDEN, "추가 정보 입력이 필요합니다."),
-    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다.");
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
+    PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."),
+    INSUFFICIENT_STOCK(HttpStatus.CONFLICT, "재고가 부족합니다.");
 
     private final HttpStatus status;
     private final String message;
