@@ -18,7 +18,10 @@ export function Header() {
       <nav className="header__nav">
         {user ? (
           <>
-            <span className="header__greeting">{user.name}님</span>
+            <Link to="/coupons">쿠폰</Link>
+            <Link to="/cart">장바구니</Link>
+            <Link to="/orders">주문내역</Link>
+            <Link to="/mypage">{user.name}님</Link>
             <button type="button" onClick={handleLogout}>
               로그아웃
             </button>
