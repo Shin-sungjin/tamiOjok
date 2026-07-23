@@ -1,6 +1,6 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-23 (frontend 기능 확장 커밋 시점)
+마지막 갱신: 2026-07-23 (PR #13 생성 시점)
 ========================================================================
 
 [완료된 작업]
@@ -11,8 +11,13 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
     ReviewFormPage, MyReviewsPage, InquiryListPage/CreatePage/DetailPage,
     CouponListPage, MyCouponsPage, AdditionalInfoPage(NEED_INFO), MyPage
   - App.tsx에 전체 라우팅 연결, ProtectedRoute로 로그인 필요 페이지 보호
+  - 커밋 후 feature/frontend-scaffold 브랜치에 push, PR #13 생성
+    (https://github.com/Shin-sungjin/tamiOjok/pull/13) — 자동 머지 안 하고
+    사용자 리뷰 대기 중 (quest.log "자동 머지 워크플로 중단" 방향에 맞춤)
   ※ 여전히 이 머신에 Node.js 없어 npm install / 빌드 / 런타임 검증 못함
     → 다른(사용자) PC에서 반드시 npm install && npm run dev로 확인 필요
+
+- 프론트엔드 스캐폴딩(CORS 설정 포함) PR #12로 main에 병합 완료 (2026-07-23)
 
 - 백엔드 도메인 9종 구현 및 main 병합 완료
   user, product, order, payment, delivery (세션 이전 완료)
@@ -24,22 +29,16 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 - 문서/DB 작업 (PR #11)
   README.md, docs/USER_MANUAL.md, db/schema.sql, db/seed.sql
 - quest.log 작성: "바이브 코딩 졸업" 로드맵 7단계 정리
-- 백엔드 CORS 설정 추가 (SecurityConfig, application.properties)
-  → 프론트엔드(localhost:5173)에서 API 호출 가능하도록 설정
-  ※ 아직 별도 커밋/PR 미진행 (main 미반영 상태)
-- 프론트엔드 스캐폴딩 생성 (frontend/, React + TypeScript + Vite)
+- 백엔드 CORS 설정 추가 (SecurityConfig, application.properties) — PR #12로 병합됨
+- 프론트엔드 스캐폴딩 생성 (frontend/, React + TypeScript + Vite) — PR #12로 병합됨
   - api/ (axios client, 401 자동 refresh, auth/products API, 타입 정의)
   - context/AuthContext.tsx (로그인 상태 전역 관리)
   - components/ (Header, ProtectedRoute)
   - pages/ (LoginPage, SignupPage, ProductListPage, ProductDetailPage)
-  - 로그인/회원가입/상품목록/상품상세 화면만 구현 (학습용 최소 범위)
-  ※ 이 머신에 Node.js가 없어 npm install / 실행 검증은 못함 → 사용자 PC에서 확인 필요
-  ※ 아직 커밋 안 됨
 
 [진행 중 / 다음에 할 일]
 
-1. frontend 전체 변경사항(스캐폴딩 + 기능 확장) + CORS 백엔드 변경사항 커밋 완료
-   → PR 생성 & 사용자가 직접 리뷰 후 머지 필요
+1. PR #13 (https://github.com/Shin-sungjin/tamiOjok/pull/13) 사용자 리뷰 & 머지 대기
    (※ 자동 머지 워크플로를 계속 쓸지, 이제부터 직접 리뷰할지 사용자 결정 필요 - quest.log 2번 항목)
 2. 로컬(다른 PC)에서 Node.js 설치 후 frontend `npm install` → `npm run dev` 실행 확인
    → 화면 동작 검증 (특히 새로 추가된 장바구니/체크아웃/주문/리뷰/문의/쿠폰 플로우)
