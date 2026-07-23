@@ -1,5 +1,7 @@
 package com.example.ecommerce.domain.order.service;
 
+import com.example.ecommerce.domain.delivery.entity.Delivery;
+import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest.OrderItemRequest;
 import com.example.ecommerce.domain.order.dto.response.OrderResponse;
@@ -31,6 +33,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final StockService stockService;
+    private final DeliveryRepository deliveryRepository;
 
     @Transactional
     public OrderResponse createOrder(Long userId, OrderCreateRequest request) {
@@ -76,6 +79,14 @@ public class OrderService {
     public void cancelOrder(Long userId, Long orderId) {
         Order order = getOrderOrThrow(orderId);
         validateOwnership(order, userId);
+
+        boolean isShipped = deliveryRepository.findByOrder(order)
+                .map(Delivery::isPostShipment)
+                .orElse(false);
+        if (isShipped) {
+            throw new CustomException(ErrorCode.ORDER_ALREADY_SHIPPED);
+        }
+
         cancelAndRelease(order);
     }
 
