@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -34,8 +35,9 @@ public class OrderController {
     }
 
     @PostMapping("/from-cart")
-    public ResponseEntity<OrderResponse> createOrderFromCart(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        OrderResponse response = orderService.createOrderFromCart(userDetails.getUserId());
+    public ResponseEntity<OrderResponse> createOrderFromCart(@AuthenticationPrincipal CustomUserDetails userDetails,
+                                                               @RequestParam(required = false) Long userCouponId) {
+        OrderResponse response = orderService.createOrderFromCart(userDetails.getUserId(), userCouponId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
