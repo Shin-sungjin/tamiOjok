@@ -7,7 +7,8 @@ import jakarta.validation.constraints.Positive;
 import java.util.List;
 
 public record OrderCreateRequest(
-        @NotEmpty @Valid List<OrderItemRequest> items
+        @NotEmpty @Valid List<OrderItemRequest> items,
+        Long userCouponId
 ) {
     public record OrderItemRequest(
             @NotNull Long productId,

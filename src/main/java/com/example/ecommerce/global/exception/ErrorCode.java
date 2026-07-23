@@ -33,7 +33,14 @@ public enum ErrorCode {
     REVIEW_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 리뷰만 수정/삭제할 수 있습니다."),
     REVIEW_NOT_ALLOWED(HttpStatus.CONFLICT, "배송 완료된 주문 상품만 리뷰를 작성할 수 있습니다."),
     DUPLICATE_REVIEW(HttpStatus.CONFLICT, "이미 해당 주문 상품에 대한 리뷰를 작성했습니다."),
-    CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "장바구니에서 해당 상품을 찾을 수 없습니다.");
+    CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "장바구니에서 해당 상품을 찾을 수 없습니다."),
+    DUPLICATE_COUPON_CODE(HttpStatus.CONFLICT, "이미 존재하는 쿠폰 코드입니다."),
+    COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "쿠폰을 찾을 수 없습니다."),
+    COUPON_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 쿠폰만 사용할 수 있습니다."),
+    COUPON_ALREADY_USED(HttpStatus.CONFLICT, "이미 사용되었거나 사용할 수 없는 쿠폰입니다."),
+    COUPON_NOT_IN_VALID_PERIOD(HttpStatus.CONFLICT, "쿠폰 사용 가능 기간이 아닙니다."),
+    COUPON_MIN_ORDER_AMOUNT_NOT_MET(HttpStatus.CONFLICT, "쿠폰 최소 주문 금액을 충족하지 않습니다."),
+    DUPLICATE_COUPON_ISSUE(HttpStatus.CONFLICT, "이미 발급받은 쿠폰입니다.");
 
     private final HttpStatus status;
     private final String message;

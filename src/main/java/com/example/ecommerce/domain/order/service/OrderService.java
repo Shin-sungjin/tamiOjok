@@ -3,6 +3,8 @@ package com.example.ecommerce.domain.order.service;
 import com.example.ecommerce.domain.cart.entity.Cart;
 import com.example.ecommerce.domain.cart.entity.CartItem;
 import com.example.ecommerce.domain.cart.repository.CartRepository;
+import com.example.ecommerce.domain.coupon.entity.UserCoupon;
+import com.example.ecommerce.domain.coupon.repository.UserCouponRepository;
 import com.example.ecommerce.domain.delivery.entity.Delivery;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
@@ -38,6 +40,7 @@ public class OrderService {
     private final StockService stockService;
     private final DeliveryRepository deliveryRepository;
     private final CartRepository cartRepository;
+    private final UserCouponRepository userCouponRepository;
 
     @Transactional
     public OrderResponse createOrder(Long userId, OrderCreateRequest request) {
@@ -52,11 +55,11 @@ public class OrderService {
             stockService.reserve(itemRequest.productId(), itemRequest.quantity());
         }
 
-        return OrderResponse.from(saveOrder(user, orderItems));
+        return OrderResponse.from(createAndSaveOrder(user, orderItems, userId, request.userCouponId()));
     }
 
     @Transactional
-    public OrderResponse createOrderFromCart(Long userId) {
+    public OrderResponse createOrderFromCart(Long userId, Long userCouponId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -74,25 +77,38 @@ public class OrderService {
             stockService.reserve(cartItem.getProduct().getId(), cartItem.getQuantity());
         }
 
-        OrderResponse response = OrderResponse.from(saveOrder(user, orderItems));
+        OrderResponse response = OrderResponse.from(createAndSaveOrder(user, orderItems, userId, userCouponId));
         cart.clear();
         return response;
     }
 
-    private Order saveOrder(User user, List<OrderItem> orderItems) {
+    private Order createAndSaveOrder(User user, List<OrderItem> orderItems, Long userId, Long userCouponId) {
         BigDecimal totalAmount = orderItems.stream()
                 .map(OrderItem::getLineTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        UserCoupon userCoupon = null;
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (userCouponId != null) {
+            userCoupon = getUserCouponOrThrow(userCouponId);
+            validateCouponOwnership(userCoupon, userId);
+            discountAmount = userCoupon.use(totalAmount);
+        }
 
         Order order = Order.builder()
                 .orderNumber(generateOrderNumber())
                 .user(user)
                 .totalAmount(totalAmount)
-                .discountAmount(BigDecimal.ZERO)
+                .discountAmount(discountAmount)
                 .orderItems(orderItems)
                 .build();
+        order = orderRepository.save(order);
 
-        return orderRepository.save(order);
+        if (userCoupon != null) {
+            userCoupon.assignOrder(order);
+        }
+
+        return order;
     }
 
     public OrderResponse getMyOrder(Long userId, Long orderId) {
@@ -138,6 +154,8 @@ public class OrderService {
                 stockService.releaseReservation(item.getProduct().getId(), item.getQuantity());
             }
         }
+
+        userCouponRepository.findByOrder(order).ifPresent(UserCoupon::restore);
     }
 
     public Order getOrderEntityOrThrow(Long orderId) {
@@ -186,6 +204,17 @@ public class OrderService {
     private void validateOwnership(Order order, Long userId) {
         if (!order.isOwnedBy(userId)) {
             throw new CustomException(ErrorCode.ORDER_ACCESS_DENIED);
+        }
+    }
+
+    private UserCoupon getUserCouponOrThrow(Long userCouponId) {
+        return userCouponRepository.findById(userCouponId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COUPON_NOT_FOUND));
+    }
+
+    private void validateCouponOwnership(UserCoupon userCoupon, Long userId) {
+        if (!userCoupon.isOwnedBy(userId)) {
+            throw new CustomException(ErrorCode.COUPON_ACCESS_DENIED);
         }
     }
 
