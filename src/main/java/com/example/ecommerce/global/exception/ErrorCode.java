@@ -24,7 +24,10 @@ public enum ErrorCode {
     DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "배송 정보를 찾을 수 없습니다."),
     DELIVERY_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 배송이 등록된 주문입니다."),
     INVALID_DELIVERY_STATUS_TRANSITION(HttpStatus.CONFLICT, "현재 배송 상태에서는 처리할 수 없습니다."),
-    RETURN_NOT_ALLOWED(HttpStatus.CONFLICT, "배송 시작 전이거나 이미 반품 요청된 주문입니다.");
+    RETURN_NOT_ALLOWED(HttpStatus.CONFLICT, "배송 시작 전이거나 이미 반품 요청된 주문입니다."),
+    INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "문의를 찾을 수 없습니다."),
+    INQUIRY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 문의만 조회할 수 있습니다."),
+    INQUIRY_ALREADY_ANSWERED(HttpStatus.CONFLICT, "이미 답변이 완료된 문의입니다.");
 
     private final HttpStatus status;
     private final String message;
