@@ -27,7 +27,11 @@ public enum ErrorCode {
     RETURN_NOT_ALLOWED(HttpStatus.CONFLICT, "배송 시작 전이거나 이미 반품 요청된 주문입니다."),
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "문의를 찾을 수 없습니다."),
     INQUIRY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 문의만 조회할 수 있습니다."),
-    INQUIRY_ALREADY_ANSWERED(HttpStatus.CONFLICT, "이미 답변이 완료된 문의입니다.");
+    INQUIRY_ALREADY_ANSWERED(HttpStatus.CONFLICT, "이미 답변이 완료된 문의입니다."),
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "리뷰를 찾을 수 없습니다."),
+    REVIEW_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 리뷰만 수정/삭제할 수 있습니다."),
+    REVIEW_NOT_ALLOWED(HttpStatus.CONFLICT, "배송 완료된 주문 상품만 리뷰를 작성할 수 있습니다."),
+    DUPLICATE_REVIEW(HttpStatus.CONFLICT, "이미 해당 주문 상품에 대한 리뷰를 작성했습니다.");
 
     private final HttpStatus status;
     private final String message;
