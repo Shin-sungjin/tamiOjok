@@ -31,7 +31,8 @@ public enum ErrorCode {
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "리뷰를 찾을 수 없습니다."),
     REVIEW_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 리뷰만 수정/삭제할 수 있습니다."),
     REVIEW_NOT_ALLOWED(HttpStatus.CONFLICT, "배송 완료된 주문 상품만 리뷰를 작성할 수 있습니다."),
-    DUPLICATE_REVIEW(HttpStatus.CONFLICT, "이미 해당 주문 상품에 대한 리뷰를 작성했습니다.");
+    DUPLICATE_REVIEW(HttpStatus.CONFLICT, "이미 해당 주문 상품에 대한 리뷰를 작성했습니다."),
+    CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "장바구니에서 해당 상품을 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;
