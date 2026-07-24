@@ -28,12 +28,18 @@ TODO (우선순위 순):
          등 돈과 직결되는 로직부터
 
 4. [ ] PRD에 명시됐지만 미구현인 부분 채우기
-       - 동시성 제어: product_stocks 재고 차감/예약에 비관적 락 / 분산 락 없음
-         → 동시 주문 시 재고 정합성 깨질 위험 있음
-       - DB 마이그레이션 도구: 현재 ddl-auto=update 에만 의존
-         → Flyway 또는 Liquibase 도입 필요
-       - 실제 PG 연동: 현재 MockPgClient만 존재
-         → Toss/PortOne 등 실 PG SDK 연동 필요
+       - [x] 동시성 제어: 2026-07-24 확인 결과 이미 구현되어 있었음.
+         ProductStockRepository.findByProductIdForUpdate()가
+         @Lock(PESSIMISTIC_WRITE)로 재고 행에 SELECT FOR UPDATE를 걸어
+         reserve/release/confirmDeduction/restore를 직렬화함
+         (Products/Stock 도메인 최초 구현 커밋 beb29ad부터 존재).
+         이 항목의 "없음" 기록은 오기였음.
+       - [x] DB 마이그레이션 도구: 2026-07-24 Flyway 도입 완료.
+         src/main/resources/db/migration/V1__init_schema.sql,
+         ddl-auto=validate로 전환. (커밋은 아직 안 함, hist.log 참고)
+       - [ ] 실제 PG 연동: 현재 MockPgClient만 존재
+         → Toss/PortOne 등 실 PG SDK 연동 필요 (실 계정/API 키 필요해서
+         보류 중 — 어느 PG 쓸지 먼저 정해야 함)
 
 5. [ ] 인프라/운영 요소 추가
        - CI/CD 파이프라인 (GitHub Actions로 PR마다 테스트 자동 실행)
