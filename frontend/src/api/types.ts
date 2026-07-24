@@ -35,6 +35,8 @@ export interface ProductResponse {
   status: ProductStatus
   availableStock: number
   imageUrls: string[]
+  averageRating: number | null
+  reviewCount: number
   createdAt: string
 }
 

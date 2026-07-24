@@ -13,7 +13,7 @@ export function Header() {
   return (
     <header className="header">
       <Link to="/" className="header__logo">
-        tamiOjok
+        <span aria-hidden="true">🐷</span> tamiOjok
       </Link>
       <nav className="header__nav">
         {user ? (

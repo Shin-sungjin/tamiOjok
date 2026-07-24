@@ -10,6 +10,8 @@ import com.example.ecommerce.domain.product.enums.ProductStatus;
 import com.example.ecommerce.domain.product.repository.ProductImageRepository;
 import com.example.ecommerce.domain.product.repository.ProductRepository;
 import com.example.ecommerce.domain.product.repository.ProductStockRepository;
+import com.example.ecommerce.domain.review.repository.ReviewRepository;
+import com.example.ecommerce.domain.review.repository.ReviewRepository.ProductRatingStats;
 import com.example.ecommerce.global.exception.CustomException;
 import com.example.ecommerce.global.exception.ErrorCode;
 import java.util.List;
@@ -29,6 +31,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductStockRepository productStockRepository;
     private final ProductImageRepository productImageRepository;
+    private final ReviewRepository reviewRepository;
 
     @Transactional
     public Long createProduct(ProductCreateRequest request) {
@@ -72,7 +75,11 @@ public class ProductService {
         List<String> imageUrls = productImageRepository.findByProductOrderBySortOrderAsc(product).stream()
                 .map(ProductImage::getImageUrl)
                 .toList();
-        return ProductResponse.of(product, stock, imageUrls);
+        ProductRatingStats stats = ratingStatsByProductId(List.of(productId)).get(productId);
+        return ProductResponse.of(
+                product, stock, imageUrls,
+                stats != null ? stats.getAverageRating() : null,
+                stats != null ? stats.getReviewCount() : 0);
     }
 
     public Page<ProductResponse> getOnSaleProducts(Pageable pageable) {
@@ -94,8 +101,24 @@ public class ProductService {
                                 image -> image.getProduct().getId(),
                                 Collectors.mapping(ProductImage::getImageUrl, Collectors.toList())));
 
-        return products.map(product -> ProductResponse.of(
-                product, getStockOrThrow(product.getId()), imagesByProductId.getOrDefault(product.getId(), List.of())));
+        List<Long> productIds = products.getContent().stream().map(Product::getId).toList();
+        Map<Long, ProductRatingStats> statsByProductId = ratingStatsByProductId(productIds);
+
+        return products.map(product -> {
+            ProductRatingStats stats = statsByProductId.get(product.getId());
+            return ProductResponse.of(
+                    product, getStockOrThrow(product.getId()), imagesByProductId.getOrDefault(product.getId(), List.of()),
+                    stats != null ? stats.getAverageRating() : null,
+                    stats != null ? stats.getReviewCount() : 0);
+        });
+    }
+
+    private Map<Long, ProductRatingStats> ratingStatsByProductId(List<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        return reviewRepository.findRatingStatsByProductIds(productIds).stream()
+                .collect(Collectors.toMap(ProductRatingStats::getProductId, stats -> stats));
     }
 
     private void saveImages(Product product, List<String> imageUrls) {

@@ -15,11 +15,15 @@ public record ProductResponse(
         ProductStatus status,
         int availableStock,
         List<String> imageUrls,
+        Double averageRating,
+        long reviewCount,
         LocalDateTime createdAt
 ) {
-    public static ProductResponse of(Product product, ProductStock stock, List<String> imageUrls) {
+    public static ProductResponse of(
+            Product product, ProductStock stock, List<String> imageUrls, Double averageRating, long reviewCount) {
         return new ProductResponse(
                 product.getId(), product.getName(), product.getPrice(), product.getDescription(),
-                product.getStatus(), stock.getAvailableQuantity(), imageUrls, product.getCreatedAt());
+                product.getStatus(), stock.getAvailableQuantity(), imageUrls, averageRating, reviewCount,
+                product.getCreatedAt());
     }
 }

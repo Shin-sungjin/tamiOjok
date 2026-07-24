@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getProduct } from '../api/products'
 import { addItem } from '../api/cart'
+import { createOrder } from '../api/orders'
 import { getProductReviews } from '../api/reviews'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../context/AuthContext'
 import { useMyCoupons } from '../hooks/useMyCoupons'
 import { PriceDisplay } from '../components/PriceDisplay'
+import { RatingStars } from '../components/RatingStars'
+import { WishlistButton } from '../components/WishlistButton'
 import type { ProductResponse, ReviewResponse } from '../api/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -64,6 +67,22 @@ export function ProductDetailPage() {
     }
   }
 
+  async function handleBuyNow() {
+    if (!product) return
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    setError(null)
+    setMessage(null)
+    try {
+      const order = await createOrder({ items: [{ productId: product.id, quantity }] })
+      navigate(`/orders/${order.id}`)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
   if (error && !product) {
     return (
       <div className="page">
@@ -85,6 +104,7 @@ export function ProductDetailPage() {
 
       <div className="product-detail">
         <div className="product-detail__gallery">
+          <WishlistButton productId={product.id} />
           <div className="product-detail__main-image">
             {images[activeImage] ? (
               <img src={images[activeImage]} alt={product.name} />
@@ -112,6 +132,7 @@ export function ProductDetailPage() {
 
         <div className="product-detail__info">
           <h1>{product.name}</h1>
+          <RatingStars averageRating={product.averageRating} reviewCount={product.reviewCount} />
           <PriceDisplay price={product.price} coupons={coupons} size="md" />
 
           <p className="card__meta">
@@ -128,7 +149,8 @@ export function ProductDetailPage() {
             </span>
           </p>
 
-          <div className="actions">
+          <label className="product-detail__qty-label">
+            수량
             <input
               type="number"
               min={1}
@@ -137,6 +159,17 @@ export function ProductDetailPage() {
               onChange={(e) => setQuantity(Number(e.target.value))}
               className="table__qty-input"
             />
+          </label>
+
+          <div className="product-detail__cta">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleBuyNow}
+              disabled={product.availableStock <= 0}
+            >
+              바로 구매
+            </button>
             <button type="button" onClick={handleAddToCart} disabled={product.availableStock <= 0}>
               장바구니 담기
             </button>
