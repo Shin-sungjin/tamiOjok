@@ -1,19 +1,9 @@
 -- ============================================================
 -- tamiOjok B2C E-Commerce Database Schema (PostgreSQL)
---
--- 실제 스키마는 Flyway가 관리합니다: src/main/resources/db/migration
--- (V1__init_schema.sql이 이 파일과 같은 내용). 이 파일은 스키마를
--- 코드 없이 훑어볼 때 보는 참고용 사본이며, 애플리케이션 기동 시
--- 직접 실행할 필요는 없습니다 (Flyway가 자동 적용). 스키마를 바꿀 땐
--- db/migration에 새 버전 파일을 추가하고 이 파일도 함께 갱신하세요.
---
--- 실행 순서: schema.sql -> seed.sql
+-- Flyway baseline migration, mirrors db/schema.sql at the time
+-- Flyway was introduced. Do not edit after release — add a new
+-- versioned migration (V2__..., V3__...) for further changes.
 -- ============================================================
-
--- 기존 테이블을 정리하고 새로 만들고 싶을 때 사용 (주의: 전체 삭제)
--- DROP TABLE IF EXISTS user_coupons, coupons, cart_items, carts, reviews,
---     inquiries, deliveries, payments, order_items, orders,
---     product_stocks, products, user_addresses, users CASCADE;
 
 -- ============================================================
 -- 1. Auth & Users
