@@ -1,0 +1,136 @@
+========================================================================
+집 컴퓨터에서 tamiOjok 이어서 개발하기 (참고.txt)
+작성일: 2026-07-24 (금)
+========================================================================
+
+지금 이 회사/현재 PC 기준 상태:
+- 최신 커밋: 30bd6da (main 브랜치, PR #19까지 전부 병합됨)
+- GitHub: https://github.com/Shin-sungjin/tamiOjok
+- 현재 방식: Docker Compose로 db/backend/frontend/cloudflared 4개 컨테이너를
+  띄워서 개발/확인함. 집 PC도 이 방식 그대로 하면 됨 (Node/PostgreSQL을
+  직접 설치할 필요 없음 — 전부 Docker 안에서 빌드/실행됨).
+
+더 자세한 설명이 필요하면 레포 안의 infra_setup.md("다른 컴퓨터에서 동일
+환경 세팅하기" 섹션)와 util.log를 같이 참고. 이 파일은 그걸 압축한 빠른
+체크리스트임.
+
+---
+
+[1] 필요한 프로그램 설치
+
+1. Docker Desktop 설치 (https://www.docker.com/products/docker-desktop/)
+   - Windows면 설치 전에 WSL2 활성화 필요할 수 있음:
+     PowerShell(관리자)에서
+       wsl --install
+     (또는 winver로 이미 WSL 있는지 먼저 확인)
+   - 설치 후 재부팅, Docker Desktop 실행해서 "Use WSL2 based engine" 켜져
+     있는지 확인
+2. 확인:
+     docker --version
+     docker compose version
+3. Git 설치 (없으면) — Git Bash 또는 그냥 Windows용 Git 설치
+
+---
+
+[2] 레포 클론
+
+   git clone https://github.com/Shin-sungjin/tamiOjok.git
+   cd tamiOjok
+
+(회사 PC랑 별개의 새 로컬 환경이라, DB 데이터/찜 목록/장바구니 등은 전부
+새로 시작됨. 기존에 "탐미오족"으로 이름 바꿔놓은 상품 데이터 같은 건 집
+PC엔 없고, seed.sql 기본 더미 데이터만 있음.)
+
+---
+
+[3] .env 파일 만들기
+
+   copy .env.example .env
+
+.env를 열어서 최소 이 두 개는 반드시 채워야 함 (안 채우면 docker compose
+up 할 때 에러):
+
+   DB_PASSWORD=아무-강력한-비밀번호
+   JWT_SECRET=아무-긴-랜덤-문자열
+
+JWT_SECRET은 예를 들어 Git Bash에서:
+   openssl rand -base64 48
+
+카카오/네이버/구글 소셜 로그인 값은 실제로 테스트할 게 아니면 안 채워도
+됨 (비워두면 docker-compose 기본 샘플값으로 자동 대체돼서 기동엔 문제
+없음).
+
+---
+
+[4] 빌드 + 기동
+
+   docker compose up -d --build
+
+첫 빌드는 이미지 받고 컴파일하느라 몇 분 걸림. 완료되면:
+
+   docker compose ps
+
+db / backend / frontend / cloudflared 4개 다 Up(또는 healthy) 인지 확인.
+
+---
+
+[5] 접속 주소 확인
+
+이 프로젝트는 backend/db/frontend를 호스트 포트로 안 열어놔서
+localhost:8080이나 localhost:5173으로는 접속 안 됨. cloudflared가 매번
+새로 발급하는 임시 URL로 접속해야 함:
+
+   docker compose logs cloudflared | grep trycloudflare.com
+
+여기 나온 https://....trycloudflare.com 주소로 브라우저 접속.
+(컨테이너 재시작하면 이 URL도 바뀜 — Quick Tunnel이라 매번 랜덤 발급.
+집에서는 그냥 이 방식 그대로 써도 되고, 신경 쓰이면 나중에
+infra_setup.md의 "4-2단계 Named Tunnel"로 고정 도메인 전환 가능.)
+
+---
+
+[6] (선택) 테스트 더미 데이터 넣기
+
+backend가 Flyway로 테이블 만든 뒤에 한 번 실행:
+
+   docker exec -i -e PGPASSWORD=$(grep '^DB_PASSWORD=' .env | cut -d= -f2) \
+     $(docker compose ps -q db) psql -U postgres -d ecommerce < db/seed.sql
+
+테스트 계정 (비밀번호 전부 Password1!):
+   admin@tamiojok.com   - ADMIN, 관리자 화면 확인용
+   hong@example.com     - 배송완료 주문/리뷰 보유
+   kim@example.com      - 결제대기 주문, 반품요청 배송, 장바구니 보유
+   lee@example.com      - 배송중 주문, 쿠폰 사용 이력
+   park@example.com     - 소셜 로그인 직후 추가정보 미입력 상태 예시
+
+---
+
+[7] 코드 수정하면서 실시간으로 확인하고 싶을 때
+
+운영용 frontend 컨테이너(nginx)는 빌드된 정적 파일만 서빙해서 코드
+고쳐도 바로 안 보임. 라이브로 보려면 vite dev 서버를 임시로 따로
+띄워야 함 — 정확한 명령어는 util.log의
+"[로컬에서 Docker 내부 전용 서비스에 접속하기]"와
+"[소스 변경사항을 라이브로 반영하며 프론트엔드 확인하기]" 항목에 그대로
+복붙할 수 있게 정리되어 있음. (Windows Docker Desktop 환경이면 거기 적힌
+CHOKIDAR_USEPOLLING=true 꼭 챙길 것 — 안 하면 코드 고쳐도 화면에 안 잡힘.)
+
+---
+
+[8] 자주 쓰는 명령어 모음
+
+   docker compose up -d          # 컨테이너 기동 (이미지 이미 있으면 빌드 생략)
+   docker compose up -d --build  # 코드 바뀐 뒤 이미지 다시 빌드해서 기동
+   docker compose down           # 전체 중지 (볼륨은 유지 → 데이터 안 날아감)
+   docker compose logs -f backend   # 백엔드 로그 실시간 보기
+   docker compose ps             # 컨테이너 상태 확인
+
+---
+
+[9] 막히면
+
+- infra_setup.md 맨 아래 "트러블슈팅" 섹션에 자주 나는 문제(WSL 오류,
+  Docker Desktop 안 켜짐, Postgres 데이터 날아감 등) 정리돼 있음
+- 급하면 Claude Code 새 세션 열어서 "집 컴퓨터 세팅 중인데 OOO 에러났어"
+  라고 물어보면 됨 — 이 참고.txt랑 infra_setup.md 내용 보고 바로 도와줄 수
+  있음
