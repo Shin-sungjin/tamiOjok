@@ -1,21 +1,52 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-24 (Docker + Cloudflare Tunnel 인프라 구축)
+마지막 갱신: 2026-07-24 (Docker/Cloudflare 인프라 후속 정리: API 프록시, seed 데이터, 문서화)
 ========================================================================
 
-[완료된 작업]
+[전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
 
-- Docker 컨테이너화 + Cloudflare Tunnel 인프라 구축 (2026-07-24)
-  - 상세 계획은 infra_setup.md 참고. Rocky Linux 9 베이스로 통일.
+ 1. Initial commit — Spring Boot 프로젝트 뼈대
+ 2. PR #1  feat: 프로젝트 스캐폴딩 및 Auth/Users 도메인 구현
+ 3. PR #2  feat: Products/Stock 도메인 구현 (재고 비관적 락 포함)
+ 4. PR #3  feat: Orders/Items 도메인 구현
+ 5. PR #4  feat: Payments 도메인 구현 (결제 금액 위변조 검증)
+ 6. PR #5  feat: Deliveries 도메인 구현 및 주문 취소/반품 플로우 완성
+ 7. PR #6  feat: Inquiries 도메인 구현 (1:1 문의 등록/조회, 관리자 답변)
+ 8. PR #7  feat: Reviews 도메인 구현 (배송완료 주문상품 리뷰 작성/수정/삭제)
+ 9. PR #8  feat: Cart 도메인 구현
+10. PR #9  feat: 장바구니 기반 주문 생성 기능 추가
+11. PR #10 feat: Coupon 도메인 구현 및 주문 할인 연동
+12. PR #11 docs: README/사용자 매뉴얼 작성, DB 스키마·더미데이터(schema.sql/seed.sql) 추가
+13. PR #12 feat: React 프론트엔드 스캐폴딩 + 백엔드 CORS 설정
+14. PR #13 feat: 프론트엔드 기능 확장 (장바구니/체크아웃/주문/리뷰/문의/쿠폰/마이페이지)
+15. PR #14 feat: DB 마이그레이션 도구(Flyway) 도입
+16. PR #15 feat: Docker 컨테이너화 + Cloudflare Tunnel 인프라 구축
+    → 같은 세션에서 후속 작업(커밋 완료): nginx API 리버스 프록시 추가,
+      server.forward-headers-strategy 설정, .dockerignore 추가,
+      db/seed.sql 실제 삽입 검증, infra_setup.md에 아키텍처/배포 문서화
+
+백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
+Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
+→ Flyway 도입 → Docker/Cloudflare 인프라, 순서로 진행됨. 각 PR의 세부 구현
+내용(엔티티/API 목록 등)은 PR 본문이나 코드가 가장 정확한 소스이며, 이 로그는
+"무슨 순서로, 왜, 어떤 이슈가 있었는지"에 집중해서 기록함.
+
+---
+
+[완료된 작업 상세]
+
+- Docker 컨테이너화 + Cloudflare Tunnel 인프라 구축 (2026-07-24, PR #15로 병합됨)
+  - 상세 계획/아키텍처 설명/배포 가이드는 infra_setup.md 참고. Rocky Linux 9
+    베이스로 backend/frontend/db/cloudflared 이미지 통일.
   - 신규 파일: Dockerfile(backend), frontend/Dockerfile,
     docker/db/Dockerfile + docker-entrypoint.sh, docker/cloudflared/Dockerfile,
-    docker-compose.yml, .env.example
+    docker-compose.yml, .env.example, .dockerignore(루트/frontend)
   - .gitignore에 .env 추가 (커밋 금지, .env.example만 커밋)
   - docker compose build 전체 통과 + docker compose up -d로 4개 서비스
     (db/backend/frontend/cloudflared) 전부 정상 기동 확인
-    - backend actuator/health → UP, frontend → HTTP 200
-    - Cloudflare Quick Tunnel(trycloudflare.com)로 외부 접속 경로 확인
-      (도메인 없어서 Quick Tunnel 사용 중. 도메인 확보 시 Named Tunnel 전환 필요)
+    (backend actuator/health → UP, frontend → HTTP 200, Cloudflare Quick
+    Tunnel 연결 확인. 도메인 없어서 Quick Tunnel 사용 중 — 도메인 확보 시
+    infra_setup.md 4-2단계 Named Tunnel로 전환)
   - 이 과정에서 기존에 있던 버그 2건 발견/수정 (Docker 도입과 무관, 원래도 있었음)
     1. frontend/tsconfig.node.json: TS project reference에 composite 누락 +
        noEmit/allowImportingTsExtensions 충돌 → npm run build가 원래도 실패
@@ -26,9 +57,27 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
        기동 시 아예 실행되지 않고 있었음 (PR #14 Flyway 도입 당시엔 로컬에
        Postgres가 없어 진짜 기동 검증을 못 했었음 — 이번이 최초 실기동 검증)
        → org.springframework.boot:spring-boot-flyway 의존성 추가로 해결
-  ※ 아직 git add/commit 안 함 — 이 세션에서 이어서 commit → PR → merge 진행 예정
+  ※ 후속 작업 (같은 날, PR #15 병합 이후):
+    - Cloudflare Tunnel이 frontend 컨테이너만 밖으로 노출하는 구조라, 브라우저에서
+      실제로 접속했을 때 프론트가 backend API를 호출할 방법이 없는 문제를 발견
+      (backend/db는 호스트 포트도 안 열려 있고 터널도 frontend만 가리킴)
+      → frontend/nginx.conf 추가: `/api/`는 backend:8080으로 리버스 프록시,
+        `/`는 try_files로 SPA 라우팅 폴백. VITE_API_BASE_URL 기본값을 빈 문자열
+        (상대경로)로 변경해 axios가 같은 origin으로 요청하도록 함 → CORS 불필요.
+        docker exec로 컨테이너 내부에서 /api/v1/products 프록시 정상 동작 확인.
+      - server.forward-headers-strategy=framework 추가 (nginx가 붙이는
+        X-Forwarded-Proto/Host를 backend가 신뢰하도록)
+    - .env에 실제 랜덤 시크릿 채움: JWT_SECRET/DB_PASSWORD는 직접 생성(openssl
+      rand). Kakao/Naver/Google OAuth 값은 실제 개발자 콘솔 등록이 필요한 값이라
+      비워둠 — docker-compose 기본값(샘플 문자열)으로 대체되어 기동엔 문제없음.
+    - db/seed.sql을 실행 중인 db 컨테이너에 직접 삽입해 테스트 데이터(상품/회원/
+      주문 등) 채움, API로 조회 확인 완료.
+    - infra_setup.md에 "컨테이너 구조 & 요청 흐름"(4개 컨테이너가 어떻게
+      맞물리는지), "다른 컴퓨터에서 동일 환경 세팅하기", "배포 방법 & 신경 써야
+      할 점"(로컬 상시가동/클라우드 VM/관리형 플랫폼 3가지 옵션과 공통 유의사항)
+      섹션 추가.
 
-- DB 마이그레이션 도구(Flyway) 도입 (2026-07-24, 커밋 전 / 로컬 작업)
+- DB 마이그레이션 도구(Flyway) 도입 (2026-07-24, PR #14로 병합됨)
   - build.gradle에 org.flywaydb:flyway-database-postgresql 추가
   - src/main/resources/db/migration/V1__init_schema.sql 신설
     (db/schema.sql과 동일 내용을 Flyway 버전 마이그레이션으로 등록)
@@ -45,60 +94,53 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
     app.cors.allowed-origins 값이 없어서 테스트 스위트 전체가 실패하던
     상태였음 (PR #12 CORS 설정 추가 때 테스트 프로퍼티 갱신 누락).
     http://localhost:5173 추가해서 테스트 통과하도록 고침.
-  ※ 이 머신은 Java 21 + Gradle 9.5.1은 있어서 컴파일/테스트(H2 기준)는
-    직접 돌려서 확인함 (BUILD SUCCESSFUL). 다만 로컬에 실제 Postgres가
-    없어서 Flyway 마이그레이션이 진짜 Postgres에 적용되는지는 미검증 —
-    Postgres 있는 환경에서 최초 기동 시 확인 필요.
-  ※ 아직 git add/commit 안 함 — 사용자 리뷰 후 커밋 여부 결정 필요
+  ※ 이 PR을 만들 당시엔 로컬에 실제 Postgres가 없어서 Flyway 마이그레이션이
+    진짜 Postgres에 적용되는지는 미검증 상태였음 — 이후 PR #15 Docker 작업에서
+    실제 Postgres 컨테이너로 최초 기동 검증 완료됨 (위 항목 참고).
 
-- 프론트엔드 기능 확장 (장바구니/체크아웃/주문/리뷰/문의/쿠폰/마이페이지)
+- 프론트엔드 기능 확장 (장바구니/체크아웃/주문/리뷰/문의/쿠폰/마이페이지) — PR #13
   - api/: cart, orders, payments, deliveries, reviews, inquiries, coupons, users
   - pages/: CartPage, CheckoutPage, OrderListPage, OrderDetailPage,
     ReviewFormPage, MyReviewsPage, InquiryListPage/CreatePage/DetailPage,
     CouponListPage, MyCouponsPage, AdditionalInfoPage(NEED_INFO), MyPage
   - App.tsx에 전체 라우팅 연결, ProtectedRoute로 로그인 필요 페이지 보호
-  - 커밋 후 feature/frontend-scaffold 브랜치에 push, PR #13 생성
-    → 사용자가 직접 웹에서 리뷰 후 머지 완료 (main에 병합됨, merge commit 9c8ce01)
   ※ PR #13 머지 시도 중 GitHub 쪽 캐시 지연으로 "Head branch is out of date"가
     한동안 지속됨 (REST/GraphQL/웹 UI 전부 동일 오류). main→feature 브랜치로
     merge해 divergence를 해소하고, PR base를 재설정(PATCH)해 GitHub 쪽 캐시를
     강제로 재계산시켜 해결함. 다음에 동일 현상 발생 시 참고.
-  ※ 여전히 이 머신에 Node.js 없어 npm install / 빌드 / 런타임 검증 못함
-    → 다른(사용자) PC에서 반드시 npm install && npm run dev로 확인 필요
+  ※ PR #13 작업 당시엔 이 머신에 Node.js가 없어 npm install/빌드/런타임
+    검증을 못 했었음 — 이후 PR #15 Docker 빌드 과정에서 `npm run build`가
+    tsconfig 설정 문제로 실패하는 걸 처음 발견해서 그때 수정함 (위 항목 참고).
 
-- 프론트엔드 스캐폴딩(CORS 설정 포함) PR #12로 main에 병합 완료 (2026-07-23)
-
-- 백엔드 도메인 9종 구현 및 main 병합 완료
-  user, product, order, payment, delivery (세션 이전 완료)
-  inquiry   (PR #6)
-  review    (PR #7)
-  cart      (PR #8)
-  order-from-cart 연동 (PR #9)
-  coupon + 주문 할인 연동 (PR #10)
-- 문서/DB 작업 (PR #11)
-  README.md, docs/USER_MANUAL.md, db/schema.sql, db/seed.sql
-- quest.log 작성: "바이브 코딩 졸업" 로드맵 7단계 정리
-- 백엔드 CORS 설정 추가 (SecurityConfig, application.properties) — PR #12로 병합됨
-- 프론트엔드 스캐폴딩 생성 (frontend/, React + TypeScript + Vite) — PR #12로 병합됨
+- 프론트엔드 스캐폴딩(CORS 설정 포함) — PR #12
   - api/ (axios client, 401 자동 refresh, auth/products API, 타입 정의)
   - context/AuthContext.tsx (로그인 상태 전역 관리)
   - components/ (Header, ProtectedRoute)
   - pages/ (LoginPage, SignupPage, ProductListPage, ProductDetailPage)
+  - 백엔드 CORS 설정 추가 (SecurityConfig, application.properties)
+
+- 문서/DB 작업 — PR #11
+  README.md, docs/USER_MANUAL.md, db/schema.sql, db/seed.sql
+  quest.log 작성: "바이브 코딩 졸업" 로드맵 7단계 정리
+
+- 백엔드 도메인 9종 구현 및 main 병합 완료 — PR #1~#10
+  user, product/stock(재고 비관적 락 포함), order, payment(금액 위변조 검증),
+  delivery(취소/반품 플로우), inquiry, review, cart, order-from-cart 연동,
+  coupon(정액/정률, 발급·사용·취소 시 복원)
 
 [진행 중 / 다음에 할 일]
 
-1. Flyway 변경사항 리뷰 후 커밋 (git diff 확인: build.gradle,
-   application.properties, test/application.properties, db/schema.sql,
-   README.md, src/main/resources/db/migration/V1__init_schema.sql 신규)
-   → 실제 Postgres 붙는 환경에서 앱 최초 기동해 마이그레이션 정상 적용 확인
-2. 로컬(다른 PC)에서 Node.js 설치 후 frontend `npm install` → `npm run dev` 실행 확인
-   → 화면 동작 검증 (특히 새로 추가된 장바구니/체크아웃/주문/리뷰/문의/쿠폰 플로우)
+1. 도메인 확보되면 infra_setup.md 4-2단계(Cloudflare Named Tunnel)로 전환
+   — 지금은 Quick Tunnel이라 재기동 때마다 접속 주소가 바뀜
+2. Kakao/Naver/Google 소셜 로그인을 실제로 테스트하려면 각 개발자 콘솔에서
+   앱 등록 후 .env에 실제 client id/secret 채워야 함 (redirect-uri는 위 1번의
+   고정 도메인이 있어야 안정적으로 동작 — Quick Tunnel처럼 URL이 바뀌면 매번 깨짐)
 3. quest.log의 "바이브 코딩 졸업 로드맵" 순서대로 진행
    - 코드 직접 읽고 이해하기
-   - 자동 머지 워크플로 중단 여부 결정
    - 테스트 코드 작성 (재고/쿠폰/결제 로직부터, 현재도 사실상 0%)
-   - 실제 PG 연동 (현재 MockPgClient만 존재) — Flyway는 완료
-   - CI/CD, Docker, 로깅/모니터링
-   - 보안 점검 (/security-review)
+   - 실제 PG 연동 (현재 MockPgClient만 존재)
+   - CI/CD 구성 (현재는 수동 docker compose build/up)
+   - 로깅/모니터링, 보안 점검 (/security-review)
+4. DB 백업 전략 마련 (현재 named volume만 있고 백업 스크립트 없음)
 
 ========================================================================
