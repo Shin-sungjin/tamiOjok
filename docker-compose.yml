@@ -1,0 +1,66 @@
+services:
+  db:
+    build: ./docker/db
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-ecommerce}
+    volumes:
+      - db-data:/var/lib/pgsql/16/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-ecommerce}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-kakao-client-id}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-kakao-client-secret}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-naver-client-id}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-naver-client-secret}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-google-client-secret}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+  cloudflared:
+    build: ./docker/cloudflared
+    depends_on:
+      - backend
+      - frontend
+    # Quick Tunnel (도메인 없음, 임시 URL). 도메인 확보 후 Named Tunnel로 전환 시
+    # command를 ["tunnel", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN}"] 로 교체.
+    command: ["tunnel", "--url", "http://frontend:80"]
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  db-data:
