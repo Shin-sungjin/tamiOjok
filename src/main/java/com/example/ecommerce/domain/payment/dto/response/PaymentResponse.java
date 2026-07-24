@@ -9,6 +9,7 @@ public record PaymentResponse(
         Long id,
         Long orderId,
         String pgProvider,
+        String pgTransactionId,
         PaymentStatus status,
         BigDecimal requestedAmount,
         BigDecimal paidAmount,
@@ -16,7 +17,7 @@ public record PaymentResponse(
 ) {
     public static PaymentResponse from(Payment payment) {
         return new PaymentResponse(
-                payment.getId(), payment.getOrder().getId(), payment.getPgProvider(), payment.getStatus(),
-                payment.getRequestedAmount(), payment.getPaidAmount(), payment.getPaidAt());
+                payment.getId(), payment.getOrder().getId(), payment.getPgProvider(), payment.getPgTransactionId(),
+                payment.getStatus(), payment.getRequestedAmount(), payment.getPaidAmount(), payment.getPaidAt());
     }
 }

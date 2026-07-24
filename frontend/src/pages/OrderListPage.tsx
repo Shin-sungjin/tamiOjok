@@ -44,6 +44,7 @@ export function OrderListPage() {
           <thead>
             <tr>
               <th>주문번호</th>
+              <th>상품</th>
               <th>상태</th>
               <th>결제금액</th>
               <th>주문일</th>
@@ -51,19 +52,28 @@ export function OrderListPage() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => (
-              <tr key={order.id}>
-                <td>{order.orderNumber}</td>
-                <td>
-                  <span className="badge">{STATUS_LABEL[order.status] ?? order.status}</span>
-                </td>
-                <td>{order.paymentAmount.toLocaleString()}원</td>
-                <td>{new Date(order.createdAt).toLocaleString()}</td>
-                <td>
-                  <Link to={`/orders/${order.id}`}>상세보기</Link>
-                </td>
-              </tr>
-            ))}
+            {orders.map((order) => {
+              const [first, ...rest] = order.items
+              const itemPreview = first
+                ? rest.length > 0
+                  ? `${first.productName} 외 ${rest.length}건`
+                  : first.productName
+                : '-'
+              return (
+                <tr key={order.id}>
+                  <td>{order.orderNumber}</td>
+                  <td>{itemPreview}</td>
+                  <td>
+                    <span className="badge">{STATUS_LABEL[order.status] ?? order.status}</span>
+                  </td>
+                  <td>{order.paymentAmount.toLocaleString()}원</td>
+                  <td>{new Date(order.createdAt).toLocaleString()}</td>
+                  <td>
+                    <Link to={`/orders/${order.id}`}>상세보기</Link>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
         </div>

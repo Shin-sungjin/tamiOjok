@@ -1,9 +1,13 @@
 import { apiClient } from './client'
 import type { PageResponse, ProductResponse } from './types'
 
-export async function getProducts(page = 0, size = 12): Promise<PageResponse<ProductResponse>> {
+export async function getProducts(
+  page = 0,
+  size = 12,
+  keyword?: string,
+): Promise<PageResponse<ProductResponse>> {
   const response = await apiClient.get<PageResponse<ProductResponse>>('/api/v1/products', {
-    params: { page, size },
+    params: { page, size, keyword: keyword || undefined },
   })
   return response.data
 }

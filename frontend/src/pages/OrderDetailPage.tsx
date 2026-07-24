@@ -4,6 +4,7 @@ import * as deliveriesApi from '../api/deliveries'
 import * as ordersApi from '../api/orders'
 import * as paymentsApi from '../api/payments'
 import { extractErrorMessage } from '../api/errors'
+import { DeliveryTimeline } from '../components/DeliveryTimeline'
 import type { DeliveryResponse, OrderResponse, PaymentResponse } from '../api/types'
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
@@ -19,6 +20,13 @@ const DELIVERY_STATUS_LABEL: Record<string, string> = {
   IN_TRANSIT: '배송중',
   DELIVERED: '배송 완료',
   RETURN_REQUESTED: '반품 요청됨',
+}
+
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  READY: '결제 대기',
+  PAID: '결제 완료',
+  FAILED: '결제 실패',
+  CANCELLED: '결제 취소',
 }
 
 export function OrderDetailPage() {
@@ -153,17 +161,68 @@ export function OrderDetailPage() {
       </div>
 
       {payment && (
-        <p>
-          결제 상태: <span className="badge">{payment.status}</span>
-          {payment.paidAt && ` (${new Date(payment.paidAt).toLocaleString()})`}
-        </p>
+        <div className="detail-section">
+          <h3>결제 정보</h3>
+          <dl className="detail-list">
+            <div>
+              <dt>결제 상태</dt>
+              <dd>
+                <span className="badge">{PAYMENT_STATUS_LABEL[payment.status] ?? payment.status}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>결제 수단</dt>
+              <dd>{payment.pgProvider}</dd>
+            </div>
+            <div>
+              <dt>거래 ID</dt>
+              <dd>{payment.pgTransactionId}</dd>
+            </div>
+            <div>
+              <dt>요청 금액</dt>
+              <dd>{payment.requestedAmount.toLocaleString()}원</dd>
+            </div>
+            <div>
+              <dt>실 결제 금액</dt>
+              <dd>{payment.paidAmount != null ? `${payment.paidAmount.toLocaleString()}원` : '-'}</dd>
+            </div>
+            <div>
+              <dt>결제 일시</dt>
+              <dd>{payment.paidAt ? new Date(payment.paidAt).toLocaleString() : '-'}</dd>
+            </div>
+          </dl>
+        </div>
       )}
 
       {delivery && (
-        <p>
-          배송 상태: <span className="badge">{DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status}</span>
-          {delivery.trackingNumber && ` · 송장번호 ${delivery.trackingNumber}`}
-        </p>
+        <div className="detail-section">
+          <h3>배송 정보</h3>
+          <DeliveryTimeline status={delivery.status} />
+          <dl className="detail-list">
+            <div>
+              <dt>배송 상태</dt>
+              <dd>
+                <span className="badge">{DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>택배사</dt>
+              <dd>{delivery.courierCode || '-'}</dd>
+            </div>
+            <div>
+              <dt>송장번호</dt>
+              <dd>{delivery.trackingNumber || '-'}</dd>
+            </div>
+            <div>
+              <dt>발송일시</dt>
+              <dd>{delivery.shippedAt ? new Date(delivery.shippedAt).toLocaleString() : '-'}</dd>
+            </div>
+            <div>
+              <dt>배송완료일시</dt>
+              <dd>{delivery.deliveredAt ? new Date(delivery.deliveredAt).toLocaleString() : '-'}</dd>
+            </div>
+          </dl>
+        </div>
       )}
 
       {actionError && <p className="form-error">{actionError}</p>}

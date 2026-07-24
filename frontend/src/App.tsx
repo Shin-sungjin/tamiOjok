@@ -8,6 +8,7 @@ import { LoginPage } from './pages/LoginPage'
 import { SignupPage } from './pages/SignupPage'
 import { ProductListPage } from './pages/ProductListPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
+import { WishlistPage } from './pages/WishlistPage'
 import { CartPage } from './pages/CartPage'
 import { CheckoutPage } from './pages/CheckoutPage'
 import { OrderListPage } from './pages/OrderListPage'
@@ -40,6 +41,7 @@ function App() {
         <Routes>
           <Route path="/" element={<ProductListPage />} />
           <Route path="/products/:productId" element={<ProductDetailPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
 

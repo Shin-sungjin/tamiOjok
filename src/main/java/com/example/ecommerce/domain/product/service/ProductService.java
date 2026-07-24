@@ -82,8 +82,11 @@ public class ProductService {
                 stats != null ? stats.getReviewCount() : 0);
     }
 
-    public Page<ProductResponse> getOnSaleProducts(Pageable pageable) {
-        Page<Product> products = productRepository.findByStatus(ProductStatus.ON_SALE, pageable);
+    public Page<ProductResponse> getOnSaleProducts(String keyword, Pageable pageable) {
+        Page<Product> products = (keyword == null || keyword.isBlank())
+                ? productRepository.findByStatus(ProductStatus.ON_SALE, pageable)
+                : productRepository.findByStatusAndNameContainingIgnoreCase(
+                        ProductStatus.ON_SALE, keyword.trim(), pageable);
         return mapWithImages(products);
     }
 
