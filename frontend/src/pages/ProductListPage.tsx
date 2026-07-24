@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getProducts } from '../api/products'
 import { extractErrorMessage } from '../api/errors'
+import { useMyCoupons } from '../hooks/useMyCoupons'
+import { PriceDisplay } from '../components/PriceDisplay'
 import type { ProductResponse } from '../api/types'
 
 export function ProductListPage() {
@@ -10,6 +12,7 @@ export function ProductListPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const coupons = useMyCoupons()
 
   useEffect(() => {
     setIsLoading(true)
@@ -33,9 +36,16 @@ export function ProductListPage() {
         {products.map((product) => (
           <li key={product.id} className="product-card">
             <Link to={`/products/${product.id}`}>
+              <div className="product-card__image">
+                {product.imageUrls[0] ? (
+                  <img src={product.imageUrls[0]} alt={product.name} loading="lazy" />
+                ) : (
+                  <span className="product-card__image-placeholder">이미지 준비중</span>
+                )}
+              </div>
               <h2>{product.name}</h2>
-              <p>{product.price.toLocaleString()}원</p>
-              <p className="product-card__stock">재고 {product.availableStock}개</p>
+              <PriceDisplay price={product.price} coupons={coupons} size="sm" />
+              {product.availableStock <= 0 && <p className="product-card__stock">품절</p>}
             </Link>
           </li>
         ))}

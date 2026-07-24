@@ -5,11 +5,13 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.util.List;
 
 public record ProductCreateRequest(
         @NotBlank String name,
         @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal price,
         String description,
-        @Min(0) int initialStock
+        @Min(0) int initialStock,
+        List<String> imageUrls
 ) {
 }

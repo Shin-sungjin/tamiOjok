@@ -115,6 +115,7 @@ export function OrderDetailPage() {
         상태: <span className="badge">{ORDER_STATUS_LABEL[order.status] ?? order.status}</span>
       </p>
 
+      <div className="table-scroll">
       <table className="table">
         <thead>
           <tr>
@@ -143,6 +144,7 @@ export function OrderDetailPage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <div className="order-amounts">
         <p>상품 합계: {order.totalAmount.toLocaleString()}원</p>

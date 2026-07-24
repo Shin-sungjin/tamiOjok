@@ -13,6 +13,8 @@ public record UserCouponResponse(
         String name,
         DiscountType discountType,
         BigDecimal discountValue,
+        BigDecimal minOrderAmount,
+        BigDecimal maxDiscountAmount,
         UserCouponStatus status,
         LocalDateTime issuedAt,
         LocalDateTime usedAt
@@ -22,6 +24,7 @@ public record UserCouponResponse(
                 userCoupon.getId(), userCoupon.getCoupon().getId(),
                 userCoupon.getCoupon().getCode(), userCoupon.getCoupon().getName(),
                 userCoupon.getCoupon().getDiscountType(), userCoupon.getCoupon().getDiscountValue(),
+                userCoupon.getCoupon().getMinOrderAmount(), userCoupon.getCoupon().getMaxDiscountAmount(),
                 userCoupon.getStatus(), userCoupon.getCreatedAt(), userCoupon.getUsedAt());
     }
 }
