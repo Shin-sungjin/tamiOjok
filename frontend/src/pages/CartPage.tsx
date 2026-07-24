@@ -61,6 +61,7 @@ export function CartPage() {
         <p>장바구니가 비어있습니다. <Link to="/">상품 보러 가기</Link></p>
       ) : (
         <>
+          <div className="table-scroll">
           <table className="table">
             <thead>
               <tr>
@@ -95,6 +96,7 @@ export function CartPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           <div className="cart-summary">
             <span>총 합계: {cart.totalAmount.toLocaleString()}원</span>

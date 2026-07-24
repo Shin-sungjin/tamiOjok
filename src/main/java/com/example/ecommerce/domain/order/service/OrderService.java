@@ -9,9 +9,11 @@ import com.example.ecommerce.domain.delivery.entity.Delivery;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest.OrderItemRequest;
+import com.example.ecommerce.domain.order.dto.response.AdminOrderResponse;
 import com.example.ecommerce.domain.order.dto.response.OrderResponse;
 import com.example.ecommerce.domain.order.entity.Order;
 import com.example.ecommerce.domain.order.entity.OrderItem;
+import com.example.ecommerce.domain.order.enums.OrderStatus;
 import com.example.ecommerce.domain.order.repository.OrderRepository;
 import com.example.ecommerce.domain.product.entity.Product;
 import com.example.ecommerce.domain.product.repository.ProductRepository;
@@ -175,6 +177,18 @@ public class OrderService {
     public void startPreparing(Long orderId) {
         Order order = getOrderOrThrow(orderId);
         order.startPreparing();
+    }
+
+    public Page<AdminOrderResponse> getOrdersForAdmin(OrderStatus status, Pageable pageable) {
+        Page<Order> orders = status != null
+                ? orderRepository.findByStatus(status, pageable)
+                : orderRepository.findAll(pageable);
+        return orders.map(order -> AdminOrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null)));
+    }
+
+    public AdminOrderResponse getOrderForAdmin(Long orderId) {
+        Order order = getOrderOrThrow(orderId);
+        return AdminOrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null));
     }
 
     private OrderItem toOrderItem(OrderItemRequest itemRequest) {

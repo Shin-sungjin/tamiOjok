@@ -34,6 +34,7 @@ export interface ProductResponse {
   description: string | null
   status: ProductStatus
   availableStock: number
+  imageUrls: string[]
   createdAt: string
 }
 
@@ -186,6 +187,54 @@ export interface InquiryResponse {
   answeredAt: string | null
 }
 
+export interface DashboardSummaryResponse {
+  totalRevenue: number
+  paidOrderCount: number
+  pendingPaymentOrderCount: number
+  preparingOrderCount: number
+  cancelledOrderCount: number
+  pendingShipmentCount: number
+  inTransitCount: number
+  deliveredCount: number
+  returnRequestedCount: number
+  waitingInquiryCount: number
+  todayVisitCount: number
+  totalVisitCount: number
+}
+
+export interface AdminOrderResponse {
+  id: number
+  orderNumber: string
+  buyerEmail: string
+  buyerName: string
+  status: OrderStatus
+  paymentAmount: number
+  items: OrderItemResponse[]
+  deliveryStatus: DeliveryStatus | null
+  trackingNumber: string | null
+  createdAt: string
+}
+
+export interface ProductCreateRequest {
+  name: string
+  price: number
+  description?: string
+  initialStock: number
+  imageUrls: string[]
+}
+
+export interface ProductUpdateRequest {
+  name: string
+  price: number
+  description?: string
+  imageUrls: string[]
+}
+
+export interface DeliveryCreateRequest {
+  courierCode: string
+  trackingNumber: string
+}
+
 export interface CouponResponse {
   id: number
   code: string
@@ -205,6 +254,8 @@ export interface UserCouponResponse {
   name: string
   discountType: DiscountType
   discountValue: number
+  minOrderAmount: number
+  maxDiscountAmount: number | null
   status: UserCouponStatus
   issuedAt: string
   usedAt: string | null

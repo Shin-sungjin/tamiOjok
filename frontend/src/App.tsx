@@ -1,6 +1,9 @@
+import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Header } from './components/Header'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { AdminRoute } from './components/AdminRoute'
+import { AdminLayout } from './components/AdminLayout'
 import { LoginPage } from './pages/LoginPage'
 import { SignupPage } from './pages/SignupPage'
 import { ProductListPage } from './pages/ProductListPage'
@@ -18,8 +21,18 @@ import { CouponListPage } from './pages/CouponListPage'
 import { MyCouponsPage } from './pages/MyCouponsPage'
 import { AdditionalInfoPage } from './pages/AdditionalInfoPage'
 import { MyPage } from './pages/MyPage'
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
+import { AdminProductListPage } from './pages/admin/AdminProductListPage'
+import { AdminProductFormPage } from './pages/admin/AdminProductFormPage'
+import { AdminOrderListPage } from './pages/admin/AdminOrderListPage'
+import { AdminInquiryListPage } from './pages/admin/AdminInquiryListPage'
+import { trackVisitOnce } from './api/track'
 
 function App() {
+  useEffect(() => {
+    trackVisitOnce()
+  }, [])
+
   return (
     <>
       <Header />
@@ -134,6 +147,22 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+            }
+          >
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="products" element={<AdminProductListPage />} />
+            <Route path="products/new" element={<AdminProductFormPage />} />
+            <Route path="products/:productId/edit" element={<AdminProductFormPage />} />
+            <Route path="orders" element={<AdminOrderListPage />} />
+            <Route path="inquiries" element={<AdminInquiryListPage />} />
+          </Route>
         </Routes>
       </main>
     </>

@@ -4,12 +4,17 @@ import com.example.ecommerce.domain.product.dto.request.ProductCreateRequest;
 import com.example.ecommerce.domain.product.dto.request.ProductUpdateRequest;
 import com.example.ecommerce.domain.product.dto.response.ProductResponse;
 import com.example.ecommerce.domain.product.entity.Product;
+import com.example.ecommerce.domain.product.entity.ProductImage;
 import com.example.ecommerce.domain.product.entity.ProductStock;
 import com.example.ecommerce.domain.product.enums.ProductStatus;
+import com.example.ecommerce.domain.product.repository.ProductImageRepository;
 import com.example.ecommerce.domain.product.repository.ProductRepository;
 import com.example.ecommerce.domain.product.repository.ProductStockRepository;
 import com.example.ecommerce.global.exception.CustomException;
 import com.example.ecommerce.global.exception.ErrorCode;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +28,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final ProductStockRepository productStockRepository;
+    private final ProductImageRepository productImageRepository;
 
     @Transactional
     public Long createProduct(ProductCreateRequest request) {
@@ -40,6 +46,8 @@ public class ProductService {
                 .build();
         productStockRepository.save(stock);
 
+        saveImages(product, request.imageUrls());
+
         return product.getId();
     }
 
@@ -47,6 +55,9 @@ public class ProductService {
     public void updateProduct(Long productId, ProductUpdateRequest request) {
         Product product = getProductOrThrow(productId);
         product.update(request.name(), request.price(), request.description());
+
+        productImageRepository.deleteByProduct(product);
+        saveImages(product, request.imageUrls());
     }
 
     @Transactional
@@ -58,12 +69,50 @@ public class ProductService {
     public ProductResponse getProduct(Long productId) {
         Product product = getProductOrThrow(productId);
         ProductStock stock = getStockOrThrow(productId);
-        return ProductResponse.of(product, stock);
+        List<String> imageUrls = productImageRepository.findByProductOrderBySortOrderAsc(product).stream()
+                .map(ProductImage::getImageUrl)
+                .toList();
+        return ProductResponse.of(product, stock, imageUrls);
     }
 
     public Page<ProductResponse> getOnSaleProducts(Pageable pageable) {
-        return productRepository.findByStatus(ProductStatus.ON_SALE, pageable)
-                .map(product -> ProductResponse.of(product, getStockOrThrow(product.getId())));
+        Page<Product> products = productRepository.findByStatus(ProductStatus.ON_SALE, pageable);
+        return mapWithImages(products);
+    }
+
+    public Page<ProductResponse> getProductsForAdmin(ProductStatus status, Pageable pageable) {
+        Page<Product> products = status != null
+                ? productRepository.findByStatus(status, pageable)
+                : productRepository.findAll(pageable);
+        return mapWithImages(products);
+    }
+
+    private Page<ProductResponse> mapWithImages(Page<Product> products) {
+        Map<Long, List<String>> imagesByProductId =
+                productImageRepository.findByProductInOrderByProductIdAscSortOrderAsc(products.getContent()).stream()
+                        .collect(Collectors.groupingBy(
+                                image -> image.getProduct().getId(),
+                                Collectors.mapping(ProductImage::getImageUrl, Collectors.toList())));
+
+        return products.map(product -> ProductResponse.of(
+                product, getStockOrThrow(product.getId()), imagesByProductId.getOrDefault(product.getId(), List.of())));
+    }
+
+    private void saveImages(Product product, List<String> imageUrls) {
+        if (imageUrls == null) {
+            return;
+        }
+        int order = 0;
+        for (String imageUrl : imageUrls) {
+            if (imageUrl == null || imageUrl.isBlank()) {
+                continue;
+            }
+            productImageRepository.save(ProductImage.builder()
+                    .product(product)
+                    .imageUrl(imageUrl.trim())
+                    .sortOrder(order++)
+                    .build());
+        }
     }
 
     private Product getProductOrThrow(Long productId) {

@@ -1,0 +1,73 @@
+========================================================================
+tamiOjok 프로젝트 - 유틸리티/운영 명령어 모음 (util.log)
+마지막 갱신: 2026-07-24
+========================================================================
+
+hist.log가 "무슨 작업을 왜 했는지"를 기록한다면, 이 로그는 개발 중 반복적으로
+필요한 실전 명령어/트릭을 "그대로 복붙해서 쓸 수 있게" 정리합니다.
+
+---
+
+[Git Bash(MSYS)에서 docker run 사용 시 주의사항]
+
+Git Bash는 `/c/...` 같은 유닉스 스타일 경로를 자동으로 Windows 경로로 변환하는데,
+이게 `-v "/c/dev/vibe/frontend:/app"`나 `-w /app` 같은 docker 인자까지 건드려서
+"the working directory 'C:/Program Files/Git/app' is invalid" 같은 에러를 냄.
+
+해결: 명령어 앞에 MSYS_NO_PATHCONV=1 을 붙여서 경로 자동변환을 끈다.
+   MSYS_NO_PATHCONV=1 docker run ...
+
+---
+
+[로컬에서 Docker 내부 전용 서비스(backend:8080, db:5432)에 접속하기]
+
+배경: docker-compose.yml에서 backend/db는 `internal` 네트워크에만 붙어있고 호스트에
+포트를 publish하지 않음 (frontend/cloudflared만 외부 노출 대상). 그래서 로컬 vite dev
+서버나 DBeaver 같은 호스트 도구에서 컨테이너 내부 서비스에 직접 붙을 수 없음.
+
+해결: alpine/socat 이미지로 같은 네트워크(vibe_internal)에 붙는 TCP 포워딩 컨테이너를
+임시로 띄워서 호스트 포트 → 컨테이너 내부 주소를 릴레이한다. (네트워크 이름은 compose
+프로젝트 디렉터리명 기반이라 다를 수 있음 — `docker network ls`로 먼저 확인할 것)
+
+1) backend(8080)를 호스트 18080으로 릴레이 (프론트 dev 서버가 API 호출할 때 사용):
+   MSYS_NO_PATHCONV=1 docker run -d --rm --name vibe-proxy-tmp \
+     --network vibe_internal -p 18080:18080 \
+     alpine/socat tcp-listen:18080,fork,reuseaddr tcp-connect:backend:8080
+
+2) db(5432)를 호스트 15432로 릴레이 (DBeaver 등 DB 클라이언트 접속용):
+   MSYS_NO_PATHCONV=1 docker run -d --rm --name vibe-db-proxy-tmp \
+     --network vibe_internal -p 15432:15432 \
+     alpine/socat tcp-listen:15432,fork,reuseaddr tcp-connect:db:5432
+
+   DBeaver 접속 정보: host=localhost, port=15432, database=ecommerce
+   user/password는 .env의 DB_USERNAME / DB_PASSWORD 값 그대로 사용.
+
+3) 정리 (더 이상 필요 없을 때 — --rm으로 띄웠으므로 stop만 하면 컨테이너 자동 삭제됨):
+   docker stop vibe-proxy-tmp vibe-db-proxy-tmp
+
+---
+
+[소스 변경사항을 라이브로 반영하며 프론트엔드 확인하기 (vite dev)]
+
+배경: 이 머신엔 로컬 node/npm이 없음 (전부 Docker 이미지 안에서만 빌드/실행). 운영
+중인 frontend 컨테이너는 nginx가 이미 빌드된 정적 파일만 서빙하므로 소스 코드를 고쳐도
+바로 반영되지 않음. 코드 변경을 브라우저로 직접 확인하려면 별도 dev 서버가 필요.
+
+명령어 (위 backend 프록시(18080)를 먼저 띄운 상태에서):
+   MSYS_NO_PATHCONV=1 docker run -d --rm --name vibe-frontend-dev \
+     -v "/c/dev/vibe/frontend:/app" -w /app \
+     -p 5173:5173 -e VITE_API_BASE_URL=http://localhost:18080 \
+     node:20-slim sh -c "npm run dev -- --host 0.0.0.0"
+
+   → http://localhost:5173 으로 접속. 백엔드 CORS_ALLOWED_ORIGINS 기본값이
+     http://localhost:5173 이라서, 호스트 포트를 반드시 5173으로 맞춰야 CORS 안 걸림.
+     (.env의 CORS_ALLOWED_ORIGINS 값 확인)
+
+   정리: docker stop vibe-frontend-dev
+
+타입체크만 필요할 때 (dev 서버 없이, 1회성):
+   MSYS_NO_PATHCONV=1 docker run --rm -v "/c/dev/vibe/frontend:/app" -w /app \
+     node:20-slim sh -c "npm install --silent && npx tsc --noEmit -p tsconfig.json"
+
+   node_modules는 바인드 마운트라서 최초 실행 후 호스트에도 남음 → 다음 실행부터
+   npm install이 캐시로 빨라짐 (완전히 새로 하려면 frontend/node_modules 삭제).

@@ -55,6 +55,7 @@ export function CheckoutPage() {
   return (
     <div className="page">
       <h1>주문서</h1>
+      <div className="table-scroll">
       <table className="table">
         <thead>
           <tr>
@@ -73,6 +74,7 @@ export function CheckoutPage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <label className="checkout-coupon">
         보유 쿠폰 적용

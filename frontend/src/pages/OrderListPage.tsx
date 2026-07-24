@@ -39,6 +39,7 @@ export function OrderListPage() {
       {!isLoading && orders.length === 0 && <p>주문 내역이 없습니다.</p>}
 
       {orders.length > 0 && (
+        <div className="table-scroll">
         <table className="table">
           <thead>
             <tr>
@@ -65,6 +66,7 @@ export function OrderListPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {totalPages > 1 && (
