@@ -4,6 +4,8 @@ import { getProducts } from '../api/products'
 import { extractErrorMessage } from '../api/errors'
 import { useMyCoupons } from '../hooks/useMyCoupons'
 import { PriceDisplay } from '../components/PriceDisplay'
+import { RatingStars } from '../components/RatingStars'
+import { WishlistButton } from '../components/WishlistButton'
 import type { ProductResponse } from '../api/types'
 
 export function ProductListPage() {
@@ -35,6 +37,7 @@ export function ProductListPage() {
       <ul className="product-grid">
         {products.map((product) => (
           <li key={product.id} className="product-card">
+            <WishlistButton productId={product.id} />
             <Link to={`/products/${product.id}`}>
               <div className="product-card__image">
                 {product.imageUrls[0] ? (
@@ -44,6 +47,7 @@ export function ProductListPage() {
                 )}
               </div>
               <h2>{product.name}</h2>
+              <RatingStars averageRating={product.averageRating} reviewCount={product.reviewCount} />
               <PriceDisplay price={product.price} coupons={coupons} size="sm" />
               {product.availableStock <= 0 && <p className="product-card__stock">품절</p>}
             </Link>
