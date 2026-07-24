@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -19,8 +20,9 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public ResponseEntity<Page<ProductResponse>> getOnSaleProducts(Pageable pageable) {
-        return ResponseEntity.ok(productService.getOnSaleProducts(pageable));
+    public ResponseEntity<Page<ProductResponse>> getOnSaleProducts(
+            @RequestParam(required = false) String keyword, Pageable pageable) {
+        return ResponseEntity.ok(productService.getOnSaleProducts(keyword, pageable));
     }
 
     @GetMapping("/{productId}")

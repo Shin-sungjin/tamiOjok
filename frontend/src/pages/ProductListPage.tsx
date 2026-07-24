@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { getProducts } from '../api/products'
 import { extractErrorMessage } from '../api/errors'
 import { useMyCoupons } from '../hooks/useMyCoupons'
@@ -9,6 +9,8 @@ import { WishlistButton } from '../components/WishlistButton'
 import type { ProductResponse } from '../api/types'
 
 export function ProductListPage() {
+  const [searchParams] = useSearchParams()
+  const keyword = searchParams.get('keyword') ?? ''
   const [products, setProducts] = useState<ProductResponse[]>([])
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -17,8 +19,12 @@ export function ProductListPage() {
   const coupons = useMyCoupons()
 
   useEffect(() => {
+    setPage(0)
+  }, [keyword])
+
+  useEffect(() => {
     setIsLoading(true)
-    getProducts(page)
+    getProducts(page, 12, keyword)
       .then((result) => {
         setProducts(result.content)
         setTotalPages(result.totalPages)
@@ -26,13 +32,14 @@ export function ProductListPage() {
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setIsLoading(false))
-  }, [page])
+  }, [page, keyword])
 
   return (
     <div className="page">
-      <h1>상품 목록</h1>
+      <h1>{keyword ? `'${keyword}' 검색결과` : '상품 목록'}</h1>
       {isLoading && <p>불러오는 중...</p>}
       {error && <p className="form-error">{error}</p>}
+      {!isLoading && !error && products.length === 0 && <p>검색 결과가 없습니다.</p>}
 
       <ul className="product-grid">
         {products.map((product) => (

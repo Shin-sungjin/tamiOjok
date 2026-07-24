@@ -1,30 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import * as cartApi from '../api/cart'
 import { extractErrorMessage } from '../api/errors'
-import type { CartResponse } from '../api/types'
+import { useCart } from '../context/CartContext'
 
 export function CartPage() {
   const navigate = useNavigate()
-  const [cart, setCart] = useState<CartResponse | null>(null)
+  const { cart, isLoading, refreshCart } = useCart()
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  function loadCart() {
-    setIsLoading(true)
-    cartApi
-      .getMyCart()
-      .then(setCart)
-      .catch((err) => setError(extractErrorMessage(err)))
-      .finally(() => setIsLoading(false))
-  }
-
-  useEffect(loadCart, [])
 
   async function handleQuantityChange(cartItemId: number, quantity: number) {
     if (quantity < 1) return
     try {
-      setCart(await cartApi.updateItemQuantity(cartItemId, quantity))
+      await cartApi.updateItemQuantity(cartItemId, quantity)
+      await refreshCart()
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -33,7 +22,7 @@ export function CartPage() {
   async function handleRemove(cartItemId: number) {
     try {
       await cartApi.removeItem(cartItemId)
-      loadCart()
+      await refreshCart()
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -42,7 +31,7 @@ export function CartPage() {
   async function handleClear() {
     try {
       await cartApi.clearCart()
-      loadCart()
+      await refreshCart()
     } catch (err) {
       setError(extractErrorMessage(err))
     }

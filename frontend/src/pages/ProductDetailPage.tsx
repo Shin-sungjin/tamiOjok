@@ -6,6 +6,7 @@ import { createOrder } from '../api/orders'
 import { getProductReviews } from '../api/reviews'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../context/AuthContext'
+import { useCart } from '../context/CartContext'
 import { useMyCoupons } from '../hooks/useMyCoupons'
 import { PriceDisplay } from '../components/PriceDisplay'
 import { RatingStars } from '../components/RatingStars'
@@ -27,6 +28,7 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
 export function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>()
   const { user } = useAuth()
+  const { refreshCart } = useCart()
   const navigate = useNavigate()
   const coupons = useMyCoupons()
 
@@ -61,6 +63,7 @@ export function ProductDetailPage() {
     setMessage(null)
     try {
       await addItem({ productId: product.id, quantity })
+      await refreshCart()
       setMessage('장바구니에 담았습니다.')
     } catch (err) {
       setError(extractErrorMessage(err))

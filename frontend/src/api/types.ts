@@ -132,6 +132,7 @@ export interface PaymentResponse {
   id: number
   orderId: number
   pgProvider: string
+  pgTransactionId: string
   status: PaymentStatus
   requestedAmount: number
   paidAmount: number

@@ -4,10 +4,12 @@ import * as cartApi from '../api/cart'
 import * as couponsApi from '../api/coupons'
 import * as ordersApi from '../api/orders'
 import { extractErrorMessage } from '../api/errors'
+import { useCart } from '../context/CartContext'
 import type { CartResponse, UserCouponResponse } from '../api/types'
 
 export function CheckoutPage() {
   const navigate = useNavigate()
+  const { refreshCart } = useCart()
   const [cart, setCart] = useState<CartResponse | null>(null)
   const [coupons, setCoupons] = useState<UserCouponResponse[]>([])
   const [selectedCouponId, setSelectedCouponId] = useState<string>('')
@@ -31,6 +33,7 @@ export function CheckoutPage() {
     try {
       const userCouponId = selectedCouponId ? Number(selectedCouponId) : undefined
       const order = await ordersApi.createOrderFromCart(userCouponId)
+      await refreshCart()
       navigate(`/orders/${order.id}`)
     } catch (err) {
       setError(extractErrorMessage(err))
