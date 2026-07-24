@@ -1,9 +1,32 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-24 (Flyway 도입)
+마지막 갱신: 2026-07-24 (Docker + Cloudflare Tunnel 인프라 구축)
 ========================================================================
 
 [완료된 작업]
+
+- Docker 컨테이너화 + Cloudflare Tunnel 인프라 구축 (2026-07-24)
+  - 상세 계획은 infra_setup.md 참고. Rocky Linux 9 베이스로 통일.
+  - 신규 파일: Dockerfile(backend), frontend/Dockerfile,
+    docker/db/Dockerfile + docker-entrypoint.sh, docker/cloudflared/Dockerfile,
+    docker-compose.yml, .env.example
+  - .gitignore에 .env 추가 (커밋 금지, .env.example만 커밋)
+  - docker compose build 전체 통과 + docker compose up -d로 4개 서비스
+    (db/backend/frontend/cloudflared) 전부 정상 기동 확인
+    - backend actuator/health → UP, frontend → HTTP 200
+    - Cloudflare Quick Tunnel(trycloudflare.com)로 외부 접속 경로 확인
+      (도메인 없어서 Quick Tunnel 사용 중. 도메인 확보 시 Named Tunnel 전환 필요)
+  - 이 과정에서 기존에 있던 버그 2건 발견/수정 (Docker 도입과 무관, 원래도 있었음)
+    1. frontend/tsconfig.node.json: TS project reference에 composite 누락 +
+       noEmit/allowImportingTsExtensions 충돌 → npm run build가 원래도 실패
+       (npm run dev만 써봐서 그동안 발견 안 됐던 것으로 추정)
+       → composite: true + emitDeclarationOnly: true로 수정
+    2. build.gradle: Spring Boot 4.1부터 자동설정이 모듈별로 분리되면서
+       Flyway autoconfigure(spring-boot-flyway)가 클래스패스에 없어 Flyway가
+       기동 시 아예 실행되지 않고 있었음 (PR #14 Flyway 도입 당시엔 로컬에
+       Postgres가 없어 진짜 기동 검증을 못 했었음 — 이번이 최초 실기동 검증)
+       → org.springframework.boot:spring-boot-flyway 의존성 추가로 해결
+  ※ 아직 git add/commit 안 함 — 이 세션에서 이어서 commit → PR → merge 진행 예정
 
 - DB 마이그레이션 도구(Flyway) 도입 (2026-07-24, 커밋 전 / 로컬 작업)
   - build.gradle에 org.flywaydb:flyway-database-postgresql 추가
