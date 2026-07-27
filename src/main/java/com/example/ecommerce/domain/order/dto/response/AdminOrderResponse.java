@@ -2,6 +2,7 @@ package com.example.ecommerce.domain.order.dto.response;
 
 import com.example.ecommerce.domain.delivery.entity.Delivery;
 import com.example.ecommerce.domain.delivery.enums.DeliveryStatus;
+import com.example.ecommerce.domain.delivery.enums.ReturnReason;
 import com.example.ecommerce.domain.order.entity.Order;
 import com.example.ecommerce.domain.order.enums.OrderStatus;
 import java.math.BigDecimal;
@@ -18,6 +19,8 @@ public record AdminOrderResponse(
         List<OrderItemResponse> items,
         DeliveryStatus deliveryStatus,
         String trackingNumber,
+        ReturnReason returnReason,
+        String returnDetail,
         LocalDateTime createdAt
 ) {
     public static AdminOrderResponse of(Order order, Delivery delivery) {
@@ -31,6 +34,8 @@ public record AdminOrderResponse(
                 order.getOrderItems().stream().map(OrderItemResponse::from).toList(),
                 delivery != null ? delivery.getStatus() : null,
                 delivery != null ? delivery.getTrackingNumber() : null,
+                delivery != null ? delivery.getReturnReason() : null,
+                delivery != null ? delivery.getReturnDetail() : null,
                 order.getCreatedAt()
         );
     }

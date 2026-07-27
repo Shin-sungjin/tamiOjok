@@ -225,7 +225,14 @@ export interface AdminOrderResponse {
   items: OrderItemResponse[]
   deliveryStatus: DeliveryStatus | null
   trackingNumber: string | null
+  returnReason: ReturnReason | null
+  returnDetail: string | null
   createdAt: string
+}
+
+export interface ReturnReasonStatsResponse {
+  reason: ReturnReason
+  count: number
 }
 
 export interface ProductCreateRequest {

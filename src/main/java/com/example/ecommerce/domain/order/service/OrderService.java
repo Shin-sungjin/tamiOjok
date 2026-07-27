@@ -5,7 +5,9 @@ import com.example.ecommerce.domain.cart.entity.CartItem;
 import com.example.ecommerce.domain.cart.repository.CartRepository;
 import com.example.ecommerce.domain.coupon.entity.UserCoupon;
 import com.example.ecommerce.domain.coupon.repository.UserCouponRepository;
+import com.example.ecommerce.domain.delivery.dto.response.ReturnReasonStatsResponse;
 import com.example.ecommerce.domain.delivery.entity.Delivery;
+import com.example.ecommerce.domain.delivery.enums.ReturnReason;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest.OrderItemRequest;
@@ -187,10 +189,12 @@ public class OrderService {
         order.startPreparing();
     }
 
-    public Page<AdminOrderResponse> getOrdersForAdmin(OrderStatus status, Pageable pageable) {
-        Page<Order> orders = status != null
-                ? orderRepository.findByStatus(status, pageable)
-                : orderRepository.findAll(pageable);
+    public Page<AdminOrderResponse> getOrdersForAdmin(OrderStatus status, ReturnReason returnReason, Pageable pageable) {
+        Page<Order> orders = returnReason != null
+                ? findOrdersByReturnReason(returnReason, pageable)
+                : status != null
+                        ? orderRepository.findByStatus(status, pageable)
+                        : orderRepository.findAll(pageable);
         Map<Long, Delivery> deliveriesByOrderId = deliveriesByOrderId(orders.getContent());
         return orders.map(order -> AdminOrderResponse.of(order, deliveriesByOrderId.get(order.getId())));
     }
@@ -198,6 +202,22 @@ public class OrderService {
     public AdminOrderResponse getOrderForAdmin(Long orderId) {
         Order order = getOrderOrThrow(orderId);
         return AdminOrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null));
+    }
+
+    public List<ReturnReasonStatsResponse> getReturnReasonStats() {
+        return deliveryRepository.countGroupedByReturnReason().stream()
+                .map(stats -> new ReturnReasonStatsResponse(stats.getReason(), stats.getCount()))
+                .toList();
+    }
+
+    private Page<Order> findOrdersByReturnReason(ReturnReason returnReason, Pageable pageable) {
+        List<Long> orderIds = deliveryRepository.findByReturnReason(returnReason).stream()
+                .map(delivery -> delivery.getOrder().getId())
+                .toList();
+        if (orderIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return orderRepository.findByIdIn(orderIds, pageable);
     }
 
     private Map<Long, Delivery> deliveriesByOrderId(List<Order> orders) {

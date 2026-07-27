@@ -13,10 +13,13 @@ import com.example.ecommerce.domain.cart.entity.Cart;
 import com.example.ecommerce.domain.cart.repository.CartRepository;
 import com.example.ecommerce.domain.coupon.entity.UserCoupon;
 import com.example.ecommerce.domain.coupon.repository.UserCouponRepository;
+import com.example.ecommerce.domain.delivery.dto.response.ReturnReasonStatsResponse;
 import com.example.ecommerce.domain.delivery.entity.Delivery;
 import com.example.ecommerce.domain.delivery.enums.DeliveryStatus;
+import com.example.ecommerce.domain.delivery.enums.ReturnReason;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
+import com.example.ecommerce.domain.order.dto.response.AdminOrderResponse;
 import com.example.ecommerce.domain.order.dto.response.OrderResponse;
 import com.example.ecommerce.domain.order.entity.Order;
 import com.example.ecommerce.domain.order.entity.OrderItem;
@@ -47,6 +50,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -314,5 +318,53 @@ class OrderServiceTest {
 
         assertThat(result.getContent()).isEmpty();
         verify(deliveryRepository, never()).findByOrderIn(any());
+    }
+
+    @Test
+    void getOrdersForAdmin_filtersByReturnReason_insteadOfStatus() {
+        User user = buildUser(1L);
+        Product product = buildProduct(10L, BigDecimal.valueOf(10000));
+        Order order = buildOrderWithId(5L, user, product);
+        Delivery delivery = mock(Delivery.class);
+        when(delivery.getOrder()).thenReturn(order);
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(deliveryRepository.findByReturnReason(ReturnReason.DEFECTIVE_PRODUCT)).thenReturn(List.of(delivery));
+        when(orderRepository.findByIdIn(List.of(5L), pageable))
+                .thenReturn(new PageImpl<>(List.of(order), pageable, 1));
+        when(deliveryRepository.findByOrderIn(List.of(order))).thenReturn(List.of(delivery));
+
+        Page<AdminOrderResponse> result = orderService.getOrdersForAdmin(null, ReturnReason.DEFECTIVE_PRODUCT, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(orderRepository, never()).findByStatus(any(), any());
+        verify(orderRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void getOrdersForAdmin_returnsEmptyPage_whenNoDeliveriesMatchReturnReason() {
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(deliveryRepository.findByReturnReason(ReturnReason.OTHER)).thenReturn(List.of());
+
+        Page<AdminOrderResponse> result = orderService.getOrdersForAdmin(null, ReturnReason.OTHER, pageable);
+
+        assertThat(result.getContent()).isEmpty();
+        verify(orderRepository, never()).findByIdIn(any(), any());
+    }
+
+    @Test
+    void getReturnReasonStats_mapsProjectionToResponse() {
+        DeliveryRepository.ReturnReasonCount stat1 = mock(DeliveryRepository.ReturnReasonCount.class);
+        when(stat1.getReason()).thenReturn(ReturnReason.CHANGE_OF_MIND);
+        when(stat1.getCount()).thenReturn(3L);
+        DeliveryRepository.ReturnReasonCount stat2 = mock(DeliveryRepository.ReturnReasonCount.class);
+        when(stat2.getReason()).thenReturn(ReturnReason.DEFECTIVE_PRODUCT);
+        when(stat2.getCount()).thenReturn(1L);
+        when(deliveryRepository.countGroupedByReturnReason()).thenReturn(List.of(stat1, stat2));
+
+        List<ReturnReasonStatsResponse> result = orderService.getReturnReasonStats();
+
+        assertThat(result).containsExactly(
+                new ReturnReasonStatsResponse(ReturnReason.CHANGE_OF_MIND, 3L),
+                new ReturnReasonStatsResponse(ReturnReason.DEFECTIVE_PRODUCT, 1L));
     }
 }

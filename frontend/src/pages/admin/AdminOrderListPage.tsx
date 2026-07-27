@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import * as adminApi from '../../api/admin'
 import { extractErrorMessage } from '../../api/errors'
 import { CardListSkeleton } from '../../components/Skeleton'
-import type { AdminOrderResponse, OrderStatus } from '../../api/types'
+import type { AdminOrderResponse, OrderStatus, ReturnReason, ReturnReasonStatsResponse } from '../../api/types'
 
 const TABS: { label: string; value: OrderStatus | undefined }[] = [
   { label: '전체', value: undefined },
@@ -21,10 +21,19 @@ const DELIVERY_STATUS_LABEL: Record<string, string> = {
   RETURN_REQUESTED: '반품요청',
 }
 
+const RETURN_REASON_LABEL: Record<ReturnReason, string> = {
+  CHANGE_OF_MIND: '단순 변심',
+  DEFECTIVE_PRODUCT: '상품 불량',
+  WRONG_DELIVERY: '오배송',
+  OTHER: '기타',
+}
+
 export function AdminOrderListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const statusFilter = (searchParams.get('status') as OrderStatus | null) ?? undefined
+  const returnReasonFilter = (searchParams.get('returnReason') as ReturnReason | null) ?? undefined
   const [orders, setOrders] = useState<AdminOrderResponse[]>([])
+  const [returnReasonStats, setReturnReasonStats] = useState<ReturnReasonStatsResponse[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [busyOrderId, setBusyOrderId] = useState<number | null>(null)
@@ -33,7 +42,7 @@ export function AdminOrderListPage() {
   function load() {
     setIsLoading(true)
     adminApi
-      .getAdminOrders(statusFilter)
+      .getAdminOrders(returnReasonFilter ? undefined : statusFilter, returnReasonFilter)
       .then((result) => {
         setOrders(result.content)
         setError(null)
@@ -42,7 +51,19 @@ export function AdminOrderListPage() {
       .finally(() => setIsLoading(false))
   }
 
-  useEffect(load, [statusFilter])
+  useEffect(load, [statusFilter, returnReasonFilter])
+
+  useEffect(() => {
+    adminApi.getReturnReasonStats().then(setReturnReasonStats).catch(() => setReturnReasonStats([]))
+  }, [])
+
+  function selectStatus(status: OrderStatus | undefined) {
+    setSearchParams(status ? { status } : {})
+  }
+
+  function selectReturnReason(reason: ReturnReason | undefined) {
+    setSearchParams(reason ? { returnReason: reason } : {})
+  }
 
   async function handlePrepare(orderId: number) {
     setBusyOrderId(orderId)
@@ -85,12 +106,32 @@ export function AdminOrderListPage() {
           <button
             key={tab.label}
             type="button"
-            className={'admin-tab' + (statusFilter === tab.value ? ' admin-tab--active' : '')}
-            onClick={() => setSearchParams(tab.value ? { status: tab.value } : {})}
+            className={'admin-tab' + (!returnReasonFilter && statusFilter === tab.value ? ' admin-tab--active' : '')}
+            onClick={() => selectStatus(tab.value)}
           >
             {tab.label}
           </button>
         ))}
+      </div>
+
+      <div className="admin-inline-form">
+        <label>
+          반품 사유별 필터/집계
+          <select
+            value={returnReasonFilter ?? ''}
+            onChange={(e) => selectReturnReason((e.target.value || undefined) as ReturnReason | undefined)}
+          >
+            <option value="">전체(반품 사유 무관)</option>
+            {Object.entries(RETURN_REASON_LABEL).map(([value, label]) => {
+              const count = returnReasonStats.find((stat) => stat.reason === value)?.count ?? 0
+              return (
+                <option key={value} value={value}>
+                  {label} ({count}건)
+                </option>
+              )
+            })}
+          </select>
+        </label>
       </div>
 
       {error && <p className="form-error">{error}</p>}
@@ -118,6 +159,12 @@ export function AdminOrderListPage() {
                 </>
               )}
             </p>
+            {order.returnReason && (
+              <p className="card__meta">
+                반품 사유: <span className="badge">{RETURN_REASON_LABEL[order.returnReason]}</span>
+                {order.returnDetail && ` — ${order.returnDetail}`}
+              </p>
+            )}
             <ul>
               {order.items.map((item) => (
                 <li key={item.productId}>
