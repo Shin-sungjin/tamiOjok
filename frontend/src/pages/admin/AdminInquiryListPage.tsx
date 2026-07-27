@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as adminApi from '../../api/admin'
 import { extractErrorMessage } from '../../api/errors'
+import { CardListSkeleton } from '../../components/Skeleton'
 import type { InquiryResponse, InquiryStatus } from '../../api/types'
 
 const TABS: { label: string; value: InquiryStatus | undefined }[] = [
@@ -67,12 +68,13 @@ export function AdminInquiryListPage() {
         ))}
       </div>
 
-      {isLoading && <p>불러오는 중...</p>}
       {error && <p className="form-error">{error}</p>}
       {!isLoading && inquiries.length === 0 && <p>해당하는 문의가 없습니다.</p>}
 
+      {isLoading && <CardListSkeleton />}
+
       <ul className="list">
-        {inquiries.map((inquiry) => (
+        {!isLoading && inquiries.map((inquiry) => (
           <li key={inquiry.id} className="card">
             <h3>{inquiry.title}</h3>
             <p className="card__meta">

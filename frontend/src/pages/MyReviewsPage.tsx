@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as reviewsApi from '../api/reviews'
 import { extractErrorMessage } from '../api/errors'
+import { CardListSkeleton } from '../components/Skeleton'
 import type { ReviewResponse } from '../api/types'
 
 export function MyReviewsPage() {
@@ -48,7 +49,12 @@ export function MyReviewsPage() {
   }
 
   if (isLoading) {
-    return <p className="page">불러오는 중...</p>
+    return (
+      <div className="page" aria-hidden="true">
+        <h1>내 리뷰</h1>
+        <CardListSkeleton />
+      </div>
+    )
   }
 
   return (

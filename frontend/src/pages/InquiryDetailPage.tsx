@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import * as inquiriesApi from '../api/inquiries'
 import { extractErrorMessage } from '../api/errors'
+import { SkeletonLine } from '../components/Skeleton'
 import type { InquiryResponse } from '../api/types'
 
 export function InquiryDetailPage() {
@@ -27,7 +28,15 @@ export function InquiryDetailPage() {
   }
 
   if (!inquiry) {
-    return <p className="page">불러오는 중...</p>
+    return (
+      <div className="page" aria-hidden="true">
+        <SkeletonLine width="20%" height="0.9rem" />
+        <SkeletonLine width="55%" height="1.6rem" />
+        <SkeletonLine width="35%" height="0.85rem" />
+        <SkeletonLine width="90%" />
+        <SkeletonLine width="75%" />
+      </div>
+    )
   }
 
   return (

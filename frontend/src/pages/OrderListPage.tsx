@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as ordersApi from '../api/orders'
 import { extractErrorMessage } from '../api/errors'
+import { TableSkeleton } from '../components/Skeleton'
 import type { OrderResponse } from '../api/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -33,10 +34,11 @@ export function OrderListPage() {
   return (
     <div className="page">
       <h1>주문 내역</h1>
-      {isLoading && <p>불러오는 중...</p>}
       {error && <p className="form-error">{error}</p>}
 
       {!isLoading && orders.length === 0 && <p>주문 내역이 없습니다.</p>}
+
+      {isLoading && <TableSkeleton rows={5} columns={6} />}
 
       {orders.length > 0 && (
         <div className="table-scroll">

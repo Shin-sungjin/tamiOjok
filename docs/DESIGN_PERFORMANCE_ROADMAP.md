@@ -54,7 +54,6 @@ Docker로 프로덕션 빌드(`docker compose up -d --build db backend frontend`
 
 | 항목 | 내용 | 비고 |
 | --- | --- | --- |
-| 로딩 스켈레톤 | 상품 카드/상세/주문목록 등 주요 리스트에 텍스트 대신 스켈레톤 UI | 체감 성능(perceived performance) 개선, 디자인 완성도 항목이기도 함 |
 | `:focus-visible` 스타일 정의 | 버튼/링크/인풋에 브랜드 컬러(`--color-accent`) 기반 포커스 링 추가 | 접근성, 구현 난이도 낮음 |
 | 찜하기 버튼 tap-target 겹침 | `.wishlist-btn`(32x32)이 카드 링크(`<a>`)와 겹쳐 Lighthouse가 "부적절한 탭 타겟"으로 지적 | 모바일 터치 정확도 문제, 실제 UX에도 영향 |
 | 상품 카드 텍스트 명도 대비 부족 | `.product-card__image-placeholder`(3.77:1), `.rating-stars__count`(4.15:1) — WCAG AA 기준(4.5:1) 미달 | `--color-text-muted` 톤 조정 또는 해당 요소만 진하게 |
@@ -152,6 +151,26 @@ gzip_types text/css application/javascript application/json image/svg+xml;` 추�
 `Content-Encoding: gzip` 헤더와 실제 바이트 감소를 확인 — 메인 JS 228,767바이트 →
 76,534바이트(약 66% 감소, Lighthouse가 예측한 절감폭과 거의 일치). 헤더 없이 요청하면
 228,767바이트 그대로 나가는 것도 대조 확인. 백엔드 `gradlew test`도 통과.
+
+### ✅ (해결됨) 로딩 스켈레톤 부재
+
+로딩 상태가 전부 `<p>불러오는 중...</p>` 텍스트 한 줄이었음 (17곳). 체감 성능과
+디자인 완성도 둘 다에 걸리는 항목.
+
+**적용한 해결책 (2026-07-27)**: `index.css`에 shimmer 애니메이션(`@keyframes
+skeleton-shimmer`, `.skeleton`/`.skeleton-line`, `prefers-reduced-motion` 대응) 추가.
+`components/Skeleton.tsx`에 재사용 가능한 조각(`SkeletonLine`, `ProductCardSkeleton`
+/`ProductGridSkeleton`, `CardListSkeleton`, `TableSkeleton`, `StatGridSkeleton`) 구성.
+기존 구조 클래스(`.product-card`, `.card`, `.table`, `.stat-tile` 등)를 그대로 재사용해서
+실제 레이아웃과 스켈레톤 모양이 일치하도록 함. 전체 17곳 페이지(상품목록/찜목록/상품상세
+/장바구니/주문서/주문목록/주문상세/문의목록·상세/쿠폰목록/내쿠폰함/내리뷰/관리자
+대시보드·상품·주문·문의 목록)에 페이지 구조에 맞는 조합으로 적용.
+
+**검증**: Docker `tsc -b && vite build` 통과. XMLHttpRequest를 브라우저 콘솔에서
+일시적으로 지연시켜(소스 수정 없이 `javascript_tool`로 런타임에만 패치) 실제 스켈레톤
+렌더링을 claude-in-chrome으로 스크린샷 확인 — 상품상세(2단 레이아웃)/주문목록(테이블)
+/쿠폰목록(카드리스트)/관리자 대시보드(통계 타일+차트 패널) 4개 유형 전부 실제 레이아웃과
+일치, 지연 해제 후 정상적으로 실제 데이터로 전환되는 것도 확인.
 
 ### 🟡 접근성: 명도 대비 부족 + 찜하기 버튼 탭 타겟 겹침
 

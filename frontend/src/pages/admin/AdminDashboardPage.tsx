@@ -4,6 +4,7 @@ import * as adminApi from '../../api/admin'
 import { extractErrorMessage } from '../../api/errors'
 import { BarChart } from '../../components/charts/BarChart'
 import { DonutChart } from '../../components/charts/DonutChart'
+import { StatGridSkeleton } from '../../components/Skeleton'
 import type { DashboardSummaryResponse } from '../../api/types'
 
 export function AdminDashboardPage() {
@@ -22,7 +23,20 @@ export function AdminDashboardPage() {
   }
 
   if (!summary) {
-    return <p>불러오는 중...</p>
+    return (
+      <div aria-hidden="true">
+        <h1>대시보드</h1>
+        <StatGridSkeleton />
+        <div className="chart-grid">
+          <div className="chart-panel">
+            <div className="skeleton" style={{ height: '160px', borderRadius: 'var(--radius-md)' }} />
+          </div>
+          <div className="chart-panel">
+            <div className="skeleton" style={{ height: '160px', borderRadius: 'var(--radius-md)' }} />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

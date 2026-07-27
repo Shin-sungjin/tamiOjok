@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import * as cartApi from '../api/cart'
 import { extractErrorMessage } from '../api/errors'
 import { useCart } from '../context/CartContext'
+import { SkeletonLine, TableSkeleton } from '../components/Skeleton'
 
 export function CartPage() {
   const navigate = useNavigate()
@@ -38,7 +39,12 @@ export function CartPage() {
   }
 
   if (isLoading) {
-    return <p className="page">불러오는 중...</p>
+    return (
+      <div className="page" aria-hidden="true">
+        <SkeletonLine width="30%" height="1.5rem" />
+        <TableSkeleton rows={3} columns={5} />
+      </div>
+    )
   }
 
   return (

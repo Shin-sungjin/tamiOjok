@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import * as adminApi from '../../api/admin'
 import { extractErrorMessage } from '../../api/errors'
+import { CardListSkeleton } from '../../components/Skeleton'
 import type { AdminOrderResponse, OrderStatus } from '../../api/types'
 
 const TABS: { label: string; value: OrderStatus | undefined }[] = [
@@ -92,12 +93,13 @@ export function AdminOrderListPage() {
         ))}
       </div>
 
-      {isLoading && <p>불러오는 중...</p>}
       {error && <p className="form-error">{error}</p>}
       {!isLoading && orders.length === 0 && <p>해당하는 주문이 없습니다.</p>}
 
+      {isLoading && <CardListSkeleton />}
+
       <ul className="list">
-        {orders.map((order) => (
+        {!isLoading && orders.map((order) => (
           <li key={order.id} className="card">
             <div className="page-header">
               <h3>{order.orderNumber}</h3>

@@ -11,6 +11,7 @@ import { useMyCoupons } from '../hooks/useMyCoupons'
 import { PriceDisplay } from '../components/PriceDisplay'
 import { RatingStars } from '../components/RatingStars'
 import { WishlistButton } from '../components/WishlistButton'
+import { SkeletonLine } from '../components/Skeleton'
 import type { ProductResponse, ReviewResponse } from '../api/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -96,7 +97,22 @@ export function ProductDetailPage() {
   }
 
   if (!product) {
-    return <p className="page">불러오는 중...</p>
+    return (
+      <div className="page" aria-hidden="true">
+        <div className="product-detail">
+          <div className="product-detail__gallery">
+            <div className="product-detail__main-image skeleton" />
+          </div>
+          <div className="product-detail__info">
+            <SkeletonLine width="70%" height="1.6rem" />
+            <SkeletonLine width="30%" height="0.9rem" />
+            <SkeletonLine width="40%" height="1.9rem" />
+            <SkeletonLine width="90%" />
+            <SkeletonLine width="60%" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const images = product.imageUrls.length > 0 ? product.imageUrls : []

@@ -6,6 +6,7 @@ import { useMyCoupons } from '../hooks/useMyCoupons'
 import { PriceDisplay } from '../components/PriceDisplay'
 import { RatingStars } from '../components/RatingStars'
 import { WishlistButton } from '../components/WishlistButton'
+import { ProductGridSkeleton } from '../components/Skeleton'
 import type { ProductResponse } from '../api/types'
 
 export function ProductListPage() {
@@ -37,30 +38,33 @@ export function ProductListPage() {
   return (
     <div className="page">
       <h1>{keyword ? `'${keyword}' 검색결과` : '상품 목록'}</h1>
-      {isLoading && <p>불러오는 중...</p>}
       {error && <p className="form-error">{error}</p>}
       {!isLoading && !error && products.length === 0 && <p>검색 결과가 없습니다.</p>}
 
-      <ul className="product-grid">
-        {products.map((product) => (
-          <li key={product.id} className="product-card">
-            <WishlistButton productId={product.id} />
-            <Link to={`/products/${product.id}`}>
-              <div className="product-card__image">
-                {product.imageUrls[0] ? (
-                  <img src={product.imageUrls[0]} alt={product.name} loading="lazy" />
-                ) : (
-                  <span className="product-card__image-placeholder">이미지 준비중</span>
-                )}
-              </div>
-              <h2>{product.name}</h2>
-              <RatingStars averageRating={product.averageRating} reviewCount={product.reviewCount} />
-              <PriceDisplay price={product.price} coupons={coupons} size="sm" />
-              {product.availableStock <= 0 && <p className="product-card__stock">품절</p>}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {isLoading ? (
+        <ProductGridSkeleton />
+      ) : (
+        <ul className="product-grid">
+          {products.map((product) => (
+            <li key={product.id} className="product-card">
+              <WishlistButton productId={product.id} />
+              <Link to={`/products/${product.id}`}>
+                <div className="product-card__image">
+                  {product.imageUrls[0] ? (
+                    <img src={product.imageUrls[0]} alt={product.name} loading="lazy" />
+                  ) : (
+                    <span className="product-card__image-placeholder">이미지 준비중</span>
+                  )}
+                </div>
+                <h2>{product.name}</h2>
+                <RatingStars averageRating={product.averageRating} reviewCount={product.reviewCount} />
+                <PriceDisplay price={product.price} coupons={coupons} size="sm" />
+                {product.availableStock <= 0 && <p className="product-card__stock">품절</p>}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {totalPages > 1 && (
         <div className="pagination">
