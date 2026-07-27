@@ -12,6 +12,8 @@ import type {
   ProductResponse,
   ProductStatus,
   ProductUpdateRequest,
+  ReturnReason,
+  ReturnReasonStatsResponse,
 } from './types'
 
 export async function getDashboardSummary(): Promise<DashboardSummaryResponse> {
@@ -66,12 +68,18 @@ export async function restockProduct(productId: number, quantity: number): Promi
 
 export async function getAdminOrders(
   status?: OrderStatus,
+  returnReason?: ReturnReason,
   page = 0,
   size = 10,
 ): Promise<PageResponse<AdminOrderResponse>> {
   const response = await apiClient.get<PageResponse<AdminOrderResponse>>('/api/v1/admin/orders', {
-    params: { status, page, size },
+    params: { status, returnReason, page, size },
   })
+  return response.data
+}
+
+export async function getReturnReasonStats(): Promise<ReturnReasonStatsResponse[]> {
+  const response = await apiClient.get<ReturnReasonStatsResponse[]>('/api/v1/admin/orders/return-reason-stats')
   return response.data
 }
 

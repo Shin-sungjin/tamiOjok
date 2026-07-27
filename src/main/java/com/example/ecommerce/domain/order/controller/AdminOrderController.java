@@ -1,8 +1,11 @@
 package com.example.ecommerce.domain.order.controller;
 
+import com.example.ecommerce.domain.delivery.dto.response.ReturnReasonStatsResponse;
+import com.example.ecommerce.domain.delivery.enums.ReturnReason;
 import com.example.ecommerce.domain.order.dto.response.AdminOrderResponse;
 import com.example.ecommerce.domain.order.enums.OrderStatus;
 import com.example.ecommerce.domain.order.service.OrderService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,8 +26,15 @@ public class AdminOrderController {
 
     @GetMapping
     public ResponseEntity<Page<AdminOrderResponse>> getOrders(
-            @RequestParam(required = false) OrderStatus status, Pageable pageable) {
-        return ResponseEntity.ok(orderService.getOrdersForAdmin(status, pageable));
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) ReturnReason returnReason,
+            Pageable pageable) {
+        return ResponseEntity.ok(orderService.getOrdersForAdmin(status, returnReason, pageable));
+    }
+
+    @GetMapping("/return-reason-stats")
+    public ResponseEntity<List<ReturnReasonStatsResponse>> getReturnReasonStats() {
+        return ResponseEntity.ok(orderService.getReturnReasonStats());
     }
 
     @GetMapping("/{orderId}")
