@@ -54,7 +54,6 @@ Docker로 프로덕션 빌드(`docker compose up -d --build db backend frontend`
 
 | 항목 | 내용 | 비고 |
 | --- | --- | --- |
-| nginx 정적 자산(JS/CSS) gzip 미적용 | 4-1 참고, 152KB(JS)+16KB(CSS) 절감 가능 | 오늘 백엔드 API는 압축했지만 정적 파일은 nginx가 서빙 — nginx.conf에 `gzip on` 필요 |
 | 로딩 스켈레톤 | 상품 카드/상세/주문목록 등 주요 리스트에 텍스트 대신 스켈레톤 UI | 체감 성능(perceived performance) 개선, 디자인 완성도 항목이기도 함 |
 | `:focus-visible` 스타일 정의 | 버튼/링크/인풋에 브랜드 컬러(`--color-accent`) 기반 포커스 링 추가 | 접근성, 구현 난이도 낮음 |
 | 찜하기 버튼 tap-target 겹침 | `.wishlist-btn`(32x32)이 카드 링크(`<a>`)와 겹쳐 Lighthouse가 "부적절한 탭 타겟"으로 지적 | 모바일 터치 정확도 문제, 실제 UX에도 영향 |
@@ -138,12 +137,21 @@ origin으로 묶어주는 구조이므로 same-origin 요청은 화이트리스�
   통과)과 `claude-in-chrome`(실제 브라우저 전체 흐름 — `track/visit`, `auth/refresh`,
   이후 인증 API까지 전부 정상)으로 재확인 완료.
 
-### 🟡 nginx가 정적 자산(JS/CSS)에 gzip을 안 걸어줌
+### ✅ (해결됨) nginx가 정적 자산(JS/CSS)에 gzip을 안 걸어줌
 
-오늘 백엔드(`server.compression.enabled=true`)는 압축을 켰지만, 프론트 정적 파일은
-nginx가 직접 서빙하고 있어 별개로 설정해야 함. Lighthouse가 메인 JS 228KB 중 152KB,
-CSS 20KB 중 16KB를 압축으로 줄일 수 있다고 지적. `frontend/nginx.conf`의 `http`/`server`
-블록에 `gzip on; gzip_types text/css application/javascript ...;` 추가하면 해결됨.
+백엔드(`server.compression.enabled=true`)는 압축을 켰지만, 프론트 정적 파일은 nginx가
+직접 서빙하고 있어 별개로 설정이 필요했음. Lighthouse가 메인 JS 228KB 중 152KB, CSS
+20KB 중 16KB를 압축으로 줄일 수 있다고 지적한 항목.
+
+**적용한 해결책 (2026-07-27)**: `frontend/nginx.conf`의 `server` 블록에
+`gzip on; gzip_vary on; gzip_min_length 1024; gzip_comp_level 6;
+gzip_types text/css application/javascript application/json image/svg+xml;` 추가
+(`text/html`은 nginx가 기본으로 압축 대상에 포함하므로 별도 지정 불필요).
+
+**검증**: Docker로 재빌드 후 `Accept-Encoding: gzip`으로 실제 응답을 받아
+`Content-Encoding: gzip` 헤더와 실제 바이트 감소를 확인 — 메인 JS 228,767바이트 →
+76,534바이트(약 66% 감소, Lighthouse가 예측한 절감폭과 거의 일치). 헤더 없이 요청하면
+228,767바이트 그대로 나가는 것도 대조 확인. 백엔드 `gradlew test`도 통과.
 
 ### 🟡 접근성: 명도 대비 부족 + 찜하기 버튼 탭 타겟 겹침
 

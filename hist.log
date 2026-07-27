@@ -1,6 +1,6 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (CORS 403 버그 수정 — 동적 Origin 검증)
+마지막 갱신: 2026-07-27 (nginx 정적자산 gzip 적용)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -30,7 +30,8 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 20. PR #19 feat: 헤더 검색/장바구니뱃지/찜목록 + 결제·배송 상세 정보
 21. PR #20 perf: 라우트 코드 스플리팅 + gzip 압축 + lazy loading 보강, docs: 디자인/성능 로드맵 문서 신설
 22. PR #21 docs: Lighthouse 베이스라인 실측 결과 + CORS 403 버그 발견 기록
-23. (PR 예정) fix: CORS 403 버그 수정 (동적 Origin 검증 + nginx 포트 보존)
+23. PR #22 fix: CORS 403 버그 수정 (동적 Origin 검증 + nginx 포트 보존)
+24. (PR 예정) perf: nginx 정적자산(JS/CSS) gzip 압축 적용
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -42,7 +43,21 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 
 [완료된 작업 상세]
 
-- CORS 403 버그 수정 (2026-07-27, PR 예정)
+- nginx 정적자산(JS/CSS) gzip 압축 적용 (2026-07-27, PR 예정)
+  배경: 로드맵 P0 백로그 중 사용자가 다음 항목으로 지목. Lighthouse가 메인 JS
+  228KB 중 152KB, CSS 20KB 중 16KB를 압축으로 줄일 수 있다고 지적했던 항목
+  (백엔드 gzip은 이전 세션에 이미 켰지만 정적파일은 nginx가 직접 서빙해서
+  별도 설정 필요했음).
+  - frontend/nginx.conf server 블록에 gzip on/gzip_vary/gzip_min_length/
+    gzip_comp_level/gzip_types(css, js, json, svg) 추가.
+  - 검증: Docker로 재빌드 후 Accept-Encoding: gzip 헤더로 실제 요청해서
+    Content-Encoding: gzip 응답 확인, 메인 JS 228,767 → 76,534바이트(약 66%
+    감소, Lighthouse 예측치와 거의 일치) 실측. 헤더 없이 요청하면 압축 안 된
+    228,767바이트 그대로 나가는 것도 대조 확인. gradlew test 통과.
+  - docs/DESIGN_PERFORMANCE_ROADMAP.md 해당 항목 해결됨으로 갱신, P0에서 제거.
+  ※ 임시 docker 리소스(vibe-frontend-proxy-tmp, compose 스택)는 세션 종료 시 정리.
+
+- CORS 403 버그 수정 (2026-07-27, PR #22)
   배경: 직전 세션에서 발견해둔 CORS 403 버그의 해결 방향을 사용자에게 3가지
   옵션(A: nginx에서 Origin 헤더 무조건 제거 / B: 동적 Origin 검증 / C: Named
   Tunnel 고정 도메인)으로 제시. A는 csrf().disable() 상태에서 CORS가 사실상
@@ -358,7 +373,7 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
    - 로깅/모니터링, 보안 점검 (/security-review)
 4. DB 백업 전략 마련 (현재 named volume만 있고 백업 스크립트 없음)
 5. 디자인/성능 고도화 P0 항목 진행 (docs/DESIGN_PERFORMANCE_ROADMAP.md 참고)
-   — nginx 정적자산 gzip, 로딩 스켈레톤, focus-visible 스타일, 찜하기 버튼
-     탭타겟/명도대비 수정 (CORS 버그는 2026-07-27에 해결 완료)
+   — 로딩 스켈레톤, focus-visible 스타일, 찜하기 버튼 탭타겟/명도대비 수정
+     (CORS 버그, nginx gzip은 2026-07-27에 해결 완료)
 
 ========================================================================
