@@ -114,7 +114,7 @@ TODO (우선순위 순):
 
 🐛 발견된 버그/불일치 (실제로 클릭해서 재현 확인)
 
-  1. [중요] 주문 취소 버튼이 배송 이후에도 계속 노출됨
+  1. [x] [중요, 해결됨 2026-07-27] 주문 취소 버튼이 배송 이후에도 계속 노출됨
      frontend/src/pages/OrderDetailPage.tsx의 canCancel이
      `order.status === 'PENDING_PAYMENT' || order.status === 'PREPARING'`
      로만 판단하는데, 배송이 등록/완료/반품요청되어도 order.status는
@@ -123,10 +123,27 @@ TODO (우선순위 순):
      버튼이 계속 보이고, 클릭하면 서버가 "이미 배송이 시작되어 취소할
      수 없습니다. 반품/교환을 이용해주세요"라며 정상적으로 막긴 하지만
      사용자 입장에선 뜬금없는 에러 메시지를 보게 됨.
-     → 서버(OrderService.cancelOrder)는 delivery.isPostShipment()를
-     제대로 체크해서 안전함 — 데이터 무결성 문제는 없고 순수 프론트
-     UI 버그. canCancel 계산에 delivery 상태를 포함시켜서 애초에
-     버튼을 숨기면 해결됨.
+     → 조사 결과 서버도 완전히 안전하진 않았음: OrderService.cancelOrder가
+     Delivery.isPostShipment()(SHIPPED/IN_TRANSIT/DELIVERED만 포함,
+     RETURN_REQUESTED 빠짐)로 판단하고 있어서, 반품 요청 이후에 취소
+     API를 직접 호출하면(프론트 우회) 실제로 취소가 통과되는 백엔드
+     허점이 있었음(curl로 재현 확인). 배송 레코드는 등록 즉시 IN_TRANSIT
+     으로 시작해 SHIPPED 단계가 없는 이 시스템 특성상 "배송 레코드가
+     하나라도 존재하면 이미 배송이 시작된 것"이 맞는 판단 기준이라,
+     OrderService.cancelOrder를 deliveryRepository.findByOrder(order)
+     .isPresent() 기준으로 수정 (Delivery.isPostShipment()는
+     requestReturn()의 "반품 가능 상태인지" 판단용으로는 그대로 둠 —
+     의미가 다른 두 용도를 하나의 메서드로 억지로 묶으면서 생긴 버그).
+     프론트 canCancel도 order.status에 PAYMENT_COMPLETED를 추가(원래
+     빠져있었음 — 백엔드 Order.isCancellableWithStockReturn()은
+     PAYMENT_COMPLETED도 취소 가능으로 보는데 프론트는 취소 버튼 자체를
+     안 보여주고 있었음)하고 `&& !delivery` 조건을 추가해서 배송
+     레코드가 없을 때만 보이도록 수정.
+     검증: OrderServiceTest 신규 작성(배송 레코드 존재 시 취소 거부,
+     없을 때 취소 성공+재고복원 2개 케이스) 통과. 실환경에서도 반품요청
+     상태인 주문에 curl로 DELETE /api/v1/orders/{id} 직접 호출해
+     409 ORDER_ALREADY_SHIPPED 확인, 프론트에서도 취소 버튼이 사라진
+     것 확인.
 
   2. 주문 상세 상단 "상태:" 배지가 배송완료 후에도 "배송 준비중"으로 표시
      PRD상 order.status는 PENDING_PAYMENT/PAYMENT_COMPLETED/PREPARING/
@@ -146,7 +163,8 @@ TODO (우선순위 순):
 📋 다음에 고도화할 부분 (신규 발견 + 기존 로드맵 미완료 항목 취합)
 
   우선순위 높음 (버그 수정):
-  - [ ] 위 버그 1: canCancel 로직에 delivery 상태 반영
+  - [x] 위 버그 1: canCancel 로직에 delivery 상태 반영 — 2026-07-27 해결
+        (프론트+백엔드 둘 다 수정, 상세는 위 1번 항목 참고)
   - [ ] 위 버그 2: 주문 상태 표시 체계 정리 (order+delivery 통합 상태
         라벨 도입 검토, 또는 최소한 두 배지가 모순돼 보이지 않게 문구 조정)
 
