@@ -42,7 +42,7 @@ TODO (우선순위 순):
          createOrderFromCart 5개 추가, ReviewServiceTest 6개, InquiryServiceTest
          4개 신규 작성 (2026-07-27). 이 프로젝트 최초로 컨트롤러(MockMvc) 테스트도
          도입 — OrderControllerTest/ReviewControllerTest/InquiryControllerTest
-         각 2~3개씩, 라우팅/인증(401)/GlobalExceptionHandler의 에러코드→HTTP상태
+         각 3개씩, 라우팅/인증(401)/GlobalExceptionHandler의 에러코드→HTTP상태
          매핑 검증. 공유 인증 헬퍼(support/TestAuthentication)로 CustomUserDetails
          기반 인증을 MockMvc 요청에 주입.
        - src/test 에 컨텍스트 로딩 테스트 1개 + 이전 CORS 테스트 4개 +

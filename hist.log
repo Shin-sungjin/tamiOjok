@@ -66,12 +66,12 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
   먼저 작성하고, 태스크별로 커밋을 쪼개 진행함(subagent-driven-development
   방식 — 태스크마다 독립 검증 후 다음 태스크로 진행).
   - OrderServiceTest: createOrder 3개(정상 생성+재고예약, 쿠폰 적용 시 할인
-    반영, 재고 부족 시 INSUFFICIENT_STOCK) + createOrderFromCart 2개(장바구니
-    기반 생성 성공, 장바구니가 비어있을 때 예외) 총 5개 추가.
+    반영, 쿠폰이 본인 소유가 아닐 때 COUPON_ACCESS_DENIED) + createOrderFromCart
+    2개(장바구니 기반 생성 성공, 장바구니가 비어있을 때 예외) 총 5개 추가.
   - ReviewServiceTest 6개, InquiryServiceTest 4개 신규 작성 — 두 도메인 모두
     이번이 최초의 서비스 계층 테스트.
   - 이 프로젝트 최초로 컨트롤러(MockMvc) 테스트 도입: OrderControllerTest/
-    ReviewControllerTest/InquiryControllerTest 각 2~3개(총 9개) — 라우팅이
+    ReviewControllerTest/InquiryControllerTest 각 3개(총 9개) — 라우팅이
     실제로 컨트롤러까지 연결되는지, 인증 없는 요청이 401로 막히는지,
     GlobalExceptionHandler가 도메인 예외를 올바른 HTTP 상태코드로 매핑하는지
     검증. 3개 컨트롤러 테스트가 공유하는 인증 헬퍼
@@ -87,9 +87,10 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
     Jackson 클래스가 전혀 없는 것까지 확인). Task 2(OrderControllerTest)에서
     처음 이 문제를 만나 `tools.jackson.databind.ObjectMapper`로 바꿔 해결하고,
     이후 Task 4(ReviewControllerTest)/Task 6(InquiryControllerTest)에도 동일하게
-    선반영함. 같은 맥락에서 `@AutoConfigureMockMvc`도 Spring Boot 4.1부터
-    `org.springframework.boot.webmvc.test.autoconfigure` 패키지로 이동됨 —
-    세 컨트롤러 테스트 전부 이 신규 경로로 import.
+    선반영함. `@AutoConfigureMockMvc`도 Spring Boot 4.1부터
+    `org.springframework.boot.webmvc.test.autoconfigure` 패키지로 이동된 것은
+    계획 수립 단계에서 미리 확인해 둔 대로 세 컨트롤러 테스트 전부 이 신규
+    경로로 import.
   - 검증: ./gradlew test --rerun-tasks 전체 통과, BUILD SUCCESSFUL. JUnit XML
     결과 집계 기준 전체 67개 테스트(신규 24개 포함) 전부 성공/실패 0/에러 0.
     태스크마다 독립적으로 code-review를 받아 Critical/Important 없음 확인
