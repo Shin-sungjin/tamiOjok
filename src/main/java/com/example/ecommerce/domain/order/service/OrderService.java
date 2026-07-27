@@ -115,13 +115,14 @@ public class OrderService {
     public OrderResponse getMyOrder(Long userId, Long orderId) {
         Order order = getOrderOrThrow(orderId);
         validateOwnership(order, userId);
-        return OrderResponse.from(order);
+        return OrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null));
     }
 
     public Page<OrderResponse> getMyOrders(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        return orderRepository.findByUser(user, pageable).map(OrderResponse::from);
+        return orderRepository.findByUser(user, pageable)
+                .map(order -> OrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null)));
     }
 
     @Transactional

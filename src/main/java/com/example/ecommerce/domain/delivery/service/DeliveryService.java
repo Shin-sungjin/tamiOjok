@@ -3,6 +3,7 @@ package com.example.ecommerce.domain.delivery.service;
 import com.example.ecommerce.domain.delivery.dto.request.DeliveryCreateRequest;
 import com.example.ecommerce.domain.delivery.dto.response.DeliveryResponse;
 import com.example.ecommerce.domain.delivery.entity.Delivery;
+import com.example.ecommerce.domain.delivery.enums.ReturnReason;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.entity.Order;
 import com.example.ecommerce.domain.order.enums.OrderStatus;
@@ -47,10 +48,10 @@ public class DeliveryService {
     }
 
     @Transactional
-    public void requestReturn(Long userId, Long orderId) {
+    public void requestReturn(Long userId, Long orderId, ReturnReason reason, String detail) {
         Order order = orderService.getOrderEntityOrThrow(orderId);
         validateOwnership(order, userId);
-        getDeliveryOrThrow(order).requestReturn();
+        getDeliveryOrThrow(order).requestReturn(reason, detail);
     }
 
     private Delivery getDeliveryOrThrow(Order order) {

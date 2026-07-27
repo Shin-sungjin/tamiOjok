@@ -219,4 +219,110 @@ TODO (우선순위 순):
   - 리뷰: 상품#1(89,000원 족발)에 5점 리뷰 1건 추가됨
   - 문의: "취소된 주문 관련 문의" 1건 (답변 완료 처리함)
 
+------------------------------------------------------------------------
+
+[2026-07-27] 사용자 실사용 중 발견한 버그 6건 수정
+------------------------------------------------------------------------
+배경: 위 전체 검증 이후, 사용자가 Docker로 띄운 앱(http://localhost:18091)을
+직접 사용해보다가 두 차례에 걸쳐 버그를 리포트함. 아래 A~F 전부 코드로
+원인 확인 후 수정, claude-in-chrome으로 실제 계정 로그인/로그아웃/관리자
+조작까지 재현해서 라이브 검증 완료.
+
+🐛 수정한 버그 (실사용 리포트 → 원인 확인 → 수정 → 라이브 재검증)
+
+  A. [x] 찜 목록이 계정 간 공유됨 / 로그아웃해도 유지됨
+     frontend/src/hooks/useWishlist.ts가 localStorage 키 하나
+     ("tamiojok_wishlist")를 모든 사용자가 공유하고 있었음 — 로그인
+     계정과 무관하게 브라우저 하나면 찜 목록이 그대로 이어짐.
+     → 로그인한 user.id 기준으로 localStorage 키를 분리
+     (tamiojok_wishlist:{userId}, 비로그인은 :guest 버킷). AuthContext의
+     user가 바뀌면 버킷을 전환하는 switchBucket() 추가. 기존 모듈
+     스코프 공유 상태 + listener 구독 패턴(찜 갱신 시 헤더/카드/상세
+     동기화)은 그대로 유지.
+     검증: qa-test-user로 로그인 후 찜 1건 추가(헤더 배지 1) →
+     로그아웃하면 배지 사라짐 → hong@example.com으로 로그인하면
+     하트가 비어있고 배지도 0으로 완전히 분리된 것 확인.
+
+  B. [x] (버그 아님, 사용자 요청에 따른 표시 방식 변경) 장바구니 배지가
+     상품 수량 합계 대신 담긴 상품 종류 개수를 보여줘야 함
+     처음엔 버그 리포트로 받았으나 실측(A상품10개+B상품3개→13으로
+     정상 합산됨 확인)해보니 기존 합산 로직 자체엔 결함이 없었음.
+     사용자가 "13이 아니라 2로 떠야 예쁘다"고 명시적으로 선호를
+     정정해서, 코드 결함이 아니라 표시 방식 변경 요청으로 처리.
+     → frontend/src/context/CartContext.tsx의 itemCount를 quantity
+     합산(reduce)에서 cart.items.length(상품 종류 수)로 변경.
+
+  C. [x] 관리자가 설정한 재고보다 많은 수량을 장바구니에 담을 수 있음
+     CartService.addItem/updateItemQuantity가 재고 확인 없이 그대로
+     장바구니에 반영하고 있었음 — 결제 시점에야 재고 부족이 걸림.
+     → Cart.getQuantityForProduct() 추가하고, addItem은
+     (기존 장바구니 수량 + 추가 요청 수량), updateItemQuantity는
+     변경 후 수량을 ProductStockRepository 기준 가용재고와 비교해서
+     초과 시 INSUFFICIENT_STOCK 예외. CartServiceTest 4개 신규
+     (정상/초과/이미 담긴 상품과 합산 초과/수량변경 초과).
+     검증: 가용재고 8개인 상품에 999개 담기 시도 → "재고가
+     부족합니다" 에러로 정상 차단되는 것 실제 화면에서 확인.
+
+  D. [x] 주문 목록의 상태와 주문 상세의 상태가 다르게 표시됨
+     (사용자가 ORD1E4218FF80BD4C4A로 직접 재현 리포트)
+     고객용 OrderResponse DTO에 애초에 배송 정보가 아예 없었음
+     (관리자용 AdminOrderResponse는 이미 deliveryStatus 필드가 있었는데
+     고객용에는 빠져 있던 것). 그래서 주문 목록 페이지는 순수
+     order.status만으로 라벨을 만들고, 상세 페이지는 별도로 delivery를
+     조회해서 다른 라벨 계산 로직을 쓰다 보니 둘이 어긋남.
+     → OrderResponse에 deliveryStatus 필드 추가, OrderResponse.of(order,
+     delivery) 오버로드 신설(AdminOrderResponse와 동일 패턴 재사용).
+     OrderService.getMyOrder/getMyOrders가 delivery를 조회해서 채워줌.
+     프론트는 utils/orderStatus.ts에 getOrderStatusLabel() 하나로 통합해
+     목록/상세 페이지가 동일 로직을 공유하도록 정리(배송 상태가 있으면
+     그걸 우선 표시, CANCELLED만 예외).
+     검증: 사용자가 리포트한 바로 그 주문(#7, ORD1E4218FF80BD4C4A)에서
+     목록/상세 둘 다 "반품 요청됨"으로 정확히 일치하는 것 확인.
+
+  E. [x] 반품 요청이 사유 선택 없이 버튼 클릭 한 번으로 끝남
+     → V4 마이그레이션으로 deliveries에 return_reason/return_detail
+     컬럼 추가. ReturnReason enum(단순변심/상품불량/오배송/기타) 신설,
+     Delivery.requestReturn(reason, detail)로 시그니처 변경(detail은
+     선택). 프론트에 반품 사유 select + 상세 사유 textarea 폼 추가
+     (canRequestReturn 조건은 기존 그대로 delivery.status===DELIVERED).
+     DeliveryTest 4개 신규(사유/상세 저장, 상세 선택사항 확인, 중복
+     반품요청 차단).
+     검증: 배송완료 상태인 실제 주문(#1, hong@example.com)에서 "상품
+     불량" 선택 + 상세 사유 입력 후 제출 → 상태가 "반품 요청됨"으로
+     바뀌고 반품 사유/상세 사유가 화면에 정확히 표시되는 것까지
+     End-to-End로 확인.
+
+  F. [x] 품절 상품을 재입고해도 품절 상태가 유지됨
+     ProductStatus.OUT_OF_STOCK이 프로그램상 자동으로 부여되는 곳이
+     없고(seed.sql 하드코딩 값뿐) StockService.restoreStock도 수량만
+     늘릴 뿐 status는 건드리지 않았음. 고객 화면(목록/상세)은
+     availableStock으로 품절 여부를 동적 계산해서 문제가 안 드러나고,
+     관리자 상품 테이블만 product.status를 직접 표시해서 스테일 상태가
+     노출됨.
+     → StockService.restoreStock에서 재고 회복 후 상품이
+     OUT_OF_STOCK이고 가용재고>0이면 ON_SALE로 자동 전환하는
+     reviveIfOutOfStock() 추가. HIDDEN(관리자 의도적 숨김)은 건드리지
+     않음. StockServiceTest 3개 신규(복구 확인/HIDDEN 유지/재고 여전히
+     0이면 미복구).
+     검증: 관리자 화면에서 품절 표시된 상품(재고 1개)에 10개 입고 →
+     "판매중"으로 자동 전환되는 것 실제 화면에서 확인.
+
+  G. [철회됨] "재고 10개인 상품을 10개 주문해도 품절로 안 바뀌고 주문이
+     계속 쌓임" — 사용자가 리포트 직후 "마지막 건 내가 잘못 확인한 것
+     같다, 메인페이지 복귀 시 정상적으로 품절 표시된다"고 스스로 정정.
+     실제 버그 아님, 수정 안 함 (혹시 재발하면 별개 리포트로 처리 필요).
+
+  검증 방식: ./gradlew test로 전체 백엔드 테스트(신규 11개 포함) 통과
+  확인 + Docker 프로덕션 빌드 재기동(Flyway V4 마이그레이션 정상 적용
+  확인) + claude-in-chrome으로 qa-test-user/hong/admin 세 계정을 오가며
+  각 수정사항을 실제 화면 조작으로 재현 검증.
+
+📋 다음에 고도화할 부분 (신규)
+  - AdminOrderResponse.of(order, delivery) 패턴을 getMyOrders에도
+    그대로 재사용하면서 N+1 조회 이슈가 있는 채로 남아있음(주문
+    목록에서 주문 개수만큼 delivery 조회 쿼리 발생) — 이번엔 스코프
+    밖이라 그대로 둠, 목록 API에 배치 조회 도입 검토 필요
+  - 반품 사유는 저장/표시까지만 구현, 관리자가 반품 사유별로
+    필터링/집계하는 화면은 아직 없음
+
 ========================================================================

@@ -37,7 +37,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     refreshCart()
   }, [refreshCart])
 
-  const itemCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0
+  // 헤더 뱃지는 "총 담긴 수량"이 아니라 "담긴 상품 종류 수"를 보여준다
+  // (예: A 10개 + B 3개 → 13이 아니라 2). 한 상품을 대량으로 담아도 뱃지가
+  // 과도하게 커지지 않고, 장바구니에 몇 종류를 담았는지 한눈에 보이는 게
+  // 더 자연스럽다는 판단.
+  const itemCount = cart?.items.length ?? 0
 
   return (
     <CartContext.Provider value={{ cart, itemCount, isLoading, refreshCart }}>

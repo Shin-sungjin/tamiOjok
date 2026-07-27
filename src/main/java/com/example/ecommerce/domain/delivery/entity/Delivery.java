@@ -1,6 +1,7 @@
 package com.example.ecommerce.domain.delivery.entity;
 
 import com.example.ecommerce.domain.delivery.enums.DeliveryStatus;
+import com.example.ecommerce.domain.delivery.enums.ReturnReason;
 import com.example.ecommerce.domain.order.entity.Order;
 import com.example.ecommerce.global.exception.CustomException;
 import com.example.ecommerce.global.exception.ErrorCode;
@@ -56,6 +57,13 @@ public class Delivery {
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "return_reason", length = 30)
+    private ReturnReason returnReason;
+
+    @Column(name = "return_detail")
+    private String returnDetail;
+
     @Builder
     private Delivery(Order order, String courierCode, String trackingNumber) {
         this.order = order;
@@ -77,10 +85,12 @@ public class Delivery {
         this.deliveredAt = LocalDateTime.now();
     }
 
-    public void requestReturn() {
+    public void requestReturn(ReturnReason reason, String detail) {
         if (!isPostShipment()) {
             throw new CustomException(ErrorCode.RETURN_NOT_ALLOWED);
         }
         this.status = DeliveryStatus.RETURN_REQUESTED;
+        this.returnReason = reason;
+        this.returnDetail = detail;
     }
 }

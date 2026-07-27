@@ -6,28 +6,21 @@ import * as paymentsApi from '../api/payments'
 import { extractErrorMessage } from '../api/errors'
 import { DeliveryTimeline } from '../components/DeliveryTimeline'
 import { SkeletonLine, TableSkeleton } from '../components/Skeleton'
-import type { DeliveryResponse, OrderResponse, PaymentResponse } from '../api/types'
-
-const ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING_PAYMENT: '결제 대기',
-  PAYMENT_COMPLETED: '결제 완료',
-  PREPARING: '배송 준비중',
-  CANCELLED: '취소됨',
-}
-
-const DELIVERY_STATUS_LABEL: Record<string, string> = {
-  READY: '배송 준비중',
-  SHIPPED: '발송됨',
-  IN_TRANSIT: '배송중',
-  DELIVERED: '배송 완료',
-  RETURN_REQUESTED: '반품 요청됨',
-}
+import { DELIVERY_STATUS_LABEL, getOrderStatusLabel } from '../utils/orderStatus'
+import type { DeliveryResponse, OrderResponse, PaymentResponse, ReturnReason } from '../api/types'
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
   READY: '결제 대기',
   PAID: '결제 완료',
   FAILED: '결제 실패',
   CANCELLED: '결제 취소',
+}
+
+const RETURN_REASON_LABEL: Record<ReturnReason, string> = {
+  CHANGE_OF_MIND: '단순 변심',
+  DEFECTIVE_PRODUCT: '상품 불량',
+  WRONG_DELIVERY: '오배송',
+  OTHER: '기타',
 }
 
 export function OrderDetailPage() {
@@ -39,6 +32,8 @@ export function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [returnReason, setReturnReason] = useState<ReturnReason | ''>('')
+  const [returnDetail, setReturnDetail] = useState('')
 
   function loadOrder() {
     if (!orderId) return
@@ -87,11 +82,11 @@ export function OrderDetailPage() {
   }
 
   async function handleReturnRequest() {
-    if (!order) return
+    if (!order || !returnReason) return
     setActionError(null)
     setIsProcessing(true)
     try {
-      await deliveriesApi.requestReturn(order.id)
+      await deliveriesApi.requestReturn(order.id, { reason: returnReason, detail: returnDetail.trim() || undefined })
       loadOrder()
     } catch (err) {
       setActionError(extractErrorMessage(err))
@@ -135,17 +130,7 @@ export function OrderDetailPage() {
       order.status === 'PREPARING') &&
     !delivery
   const canRequestReturn = delivery?.status === 'DELIVERED'
-
-  // order.status는 결제/이행 단계(PENDING_PAYMENT→PAYMENT_COMPLETED→PREPARING)만
-  // 나타내고 배송이 등록/진행/완료/반품요청 되어도 PREPARING에 머무름 — 상단
-  // 요약 배지가 하단 배송정보 배지와 다른 얘기를 하는 것처럼 보이는 문제가
-  // 있었음. 배송 레코드가 있으면 더 구체적인 배송 상태를 우선 보여준다.
-  const displayStatusLabel =
-    order.status === 'CANCELLED'
-      ? ORDER_STATUS_LABEL.CANCELLED
-      : delivery
-        ? (DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status)
-        : (ORDER_STATUS_LABEL[order.status] ?? order.status)
+  const displayStatusLabel = getOrderStatusLabel(order.status, delivery?.status ?? null)
 
   return (
     <div className="page">
@@ -253,7 +238,53 @@ export function OrderDetailPage() {
               <dt>배송완료일시</dt>
               <dd>{delivery.deliveredAt ? new Date(delivery.deliveredAt).toLocaleString() : '-'}</dd>
             </div>
+            {delivery.returnReason && (
+              <div>
+                <dt>반품 사유</dt>
+                <dd>{RETURN_REASON_LABEL[delivery.returnReason] ?? delivery.returnReason}</dd>
+              </div>
+            )}
+            {delivery.returnDetail && (
+              <div>
+                <dt>반품 상세 사유</dt>
+                <dd>{delivery.returnDetail}</dd>
+              </div>
+            )}
           </dl>
+        </div>
+      )}
+
+      {canRequestReturn && (
+        <div className="detail-section return-request-form">
+          <h3>반품 요청</h3>
+          <label>
+            반품 사유
+            <select
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value as ReturnReason | '')}
+            >
+              <option value="">선택하세요</option>
+              {Object.entries(RETURN_REASON_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            상세 사유 (선택)
+            <textarea
+              value={returnDetail}
+              onChange={(e) => setReturnDetail(e.target.value)}
+              rows={3}
+              placeholder="반품 사유를 자세히 적어주세요."
+            />
+          </label>
+          <div className="actions">
+            <button type="button" onClick={handleReturnRequest} disabled={isProcessing || !returnReason}>
+              반품 요청
+            </button>
+          </div>
         </div>
       )}
 
@@ -268,11 +299,6 @@ export function OrderDetailPage() {
         {canCancel && (
           <button type="button" onClick={handleCancel} disabled={isProcessing}>
             주문 취소
-          </button>
-        )}
-        {canRequestReturn && (
-          <button type="button" onClick={handleReturnRequest} disabled={isProcessing}>
-            반품 요청
           </button>
         )}
         <button type="button" onClick={() => navigate(`/inquiries/new?orderId=${order.id}`)}>
