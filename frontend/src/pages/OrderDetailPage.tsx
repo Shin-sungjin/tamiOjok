@@ -136,12 +136,23 @@ export function OrderDetailPage() {
     !delivery
   const canRequestReturn = delivery?.status === 'DELIVERED'
 
+  // order.status는 결제/이행 단계(PENDING_PAYMENT→PAYMENT_COMPLETED→PREPARING)만
+  // 나타내고 배송이 등록/진행/완료/반품요청 되어도 PREPARING에 머무름 — 상단
+  // 요약 배지가 하단 배송정보 배지와 다른 얘기를 하는 것처럼 보이는 문제가
+  // 있었음. 배송 레코드가 있으면 더 구체적인 배송 상태를 우선 보여준다.
+  const displayStatusLabel =
+    order.status === 'CANCELLED'
+      ? ORDER_STATUS_LABEL.CANCELLED
+      : delivery
+        ? (DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status)
+        : (ORDER_STATUS_LABEL[order.status] ?? order.status)
+
   return (
     <div className="page">
       <Link to="/orders">← 주문 목록</Link>
       <h1>주문 {order.orderNumber}</h1>
       <p>
-        상태: <span className="badge">{ORDER_STATUS_LABEL[order.status] ?? order.status}</span>
+        상태: <span className="badge">{displayStatusLabel}</span>
       </p>
 
       <div className="table-scroll">
