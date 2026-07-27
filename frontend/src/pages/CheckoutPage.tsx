@@ -5,6 +5,7 @@ import * as couponsApi from '../api/coupons'
 import * as ordersApi from '../api/orders'
 import { extractErrorMessage } from '../api/errors'
 import { useCart } from '../context/CartContext'
+import { SkeletonLine, TableSkeleton } from '../components/Skeleton'
 import type { CartResponse, UserCouponResponse } from '../api/types'
 
 export function CheckoutPage() {
@@ -43,7 +44,12 @@ export function CheckoutPage() {
   }
 
   if (isLoading) {
-    return <p className="page">불러오는 중...</p>
+    return (
+      <div className="page" aria-hidden="true">
+        <SkeletonLine width="25%" height="1.5rem" />
+        <TableSkeleton rows={3} columns={3} />
+      </div>
+    )
   }
 
   if (!cart || cart.items.length === 0) {

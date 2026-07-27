@@ -1,6 +1,6 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (nginx 정적자산 gzip 적용)
+마지막 갱신: 2026-07-27 (로딩 스켈레톤 UI 적용)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -31,7 +31,8 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 21. PR #20 perf: 라우트 코드 스플리팅 + gzip 압축 + lazy loading 보강, docs: 디자인/성능 로드맵 문서 신설
 22. PR #21 docs: Lighthouse 베이스라인 실측 결과 + CORS 403 버그 발견 기록
 23. PR #22 fix: CORS 403 버그 수정 (동적 Origin 검증 + nginx 포트 보존)
-24. (PR 예정) perf: nginx 정적자산(JS/CSS) gzip 압축 적용
+24. PR #23 perf: nginx 정적자산(JS/CSS) gzip 압축 적용
+25. (PR 예정) feat: 로딩 스켈레톤 UI 적용 (17개 페이지)
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -43,7 +44,33 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 
 [완료된 작업 상세]
 
-- nginx 정적자산(JS/CSS) gzip 압축 적용 (2026-07-27, PR 예정)
+- 로딩 스켈레톤 UI 적용 (2026-07-27, PR 예정)
+  배경: 로드맵 P0 백로그 중 사용자가 다음 항목으로 지목. 로딩 상태가 전부
+  <p>불러오는 중...</p> 텍스트 한 줄이던 17곳을 스켈레톤 UI로 교체.
+  - index.css에 shimmer 애니메이션(@keyframes skeleton-shimmer, .skeleton/
+    .skeleton-line, prefers-reduced-motion 대응) 추가.
+  - components/Skeleton.tsx 신설: SkeletonLine(기본 조각), ProductCardSkeleton/
+    ProductGridSkeleton, CardListSkeleton, TableSkeleton, StatGridSkeleton —
+    기존 구조 클래스(.product-card/.card/.table/.stat-tile)를 그대로 재사용해서
+    실제 레이아웃과 스켈레톤 모양이 일치하도록 구성.
+  - 적용 페이지(17개): ProductListPage/WishlistPage(그리드),
+    ProductDetailPage/OrderDetailPage/InquiryDetailPage(상세, 페이지별
+    조합), CartPage/CheckoutPage/OrderListPage/AdminProductListPage(테이블),
+    InquiryListPage/CouponListPage/MyCouponsPage/MyReviewsPage/
+    AdminInquiryListPage/AdminOrderListPage(카드리스트), AdminDashboardPage
+    (통계타일+차트패널).
+  - 검증: Docker tsc -b && vite build 통과(noUnusedLocals 켜져있어 isLoading
+    미사용 여부 등도 같이 걸러짐). claude-in-chrome으로 실제 렌더링 확인 —
+    로컬 요청이 너무 빨라(수십ms) 스켈레톤이 순간적으로 지나가는 문제가
+    있어서, javascript_tool로 브라우저 콘솔에서 XMLHttpRequest.send를
+    일시적으로 2초 지연시키는 패치를 런타임에만 적용(소스 수정 없음) →
+    SPA 클라이언트사이드 라우팅으로 이동하면서 스크린샷 — 상품상세/주문목록
+    (테이블)/쿠폰목록(카드리스트)/관리자 대시보드 4개 유형 전부 실제
+    레이아웃과 일치하는 것을 육안 확인, 지연 해제 후 정상 데이터 전환도 확인.
+  - docs/DESIGN_PERFORMANCE_ROADMAP.md 해당 항목 해결됨으로 갱신, P0에서 제거.
+  ※ 임시 docker 리소스(vibe-frontend-proxy-tmp, compose 스택)는 세션 종료 시 정리.
+
+- nginx 정적자산(JS/CSS) gzip 압축 적용 (2026-07-27, PR #23)
   배경: 로드맵 P0 백로그 중 사용자가 다음 항목으로 지목. Lighthouse가 메인 JS
   228KB 중 152KB, CSS 20KB 중 16KB를 압축으로 줄일 수 있다고 지적했던 항목
   (백엔드 gzip은 이전 세션에 이미 켰지만 정적파일은 nginx가 직접 서빙해서
@@ -373,7 +400,7 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
    - 로깅/모니터링, 보안 점검 (/security-review)
 4. DB 백업 전략 마련 (현재 named volume만 있고 백업 스크립트 없음)
 5. 디자인/성능 고도화 P0 항목 진행 (docs/DESIGN_PERFORMANCE_ROADMAP.md 참고)
-   — 로딩 스켈레톤, focus-visible 스타일, 찜하기 버튼 탭타겟/명도대비 수정
-     (CORS 버그, nginx gzip은 2026-07-27에 해결 완료)
+   — focus-visible 스타일, 찜하기 버튼 탭타겟/명도대비 수정 (CORS 버그,
+     nginx gzip, 로딩 스켈레톤은 2026-07-27에 해결 완료)
 
 ========================================================================

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as adminApi from '../../api/admin'
 import { extractErrorMessage } from '../../api/errors'
+import { TableSkeleton } from '../../components/Skeleton'
 import type { ProductResponse, ProductStatus } from '../../api/types'
 
 const STATUS_LABEL: Record<ProductStatus, string> = {
@@ -73,9 +74,11 @@ export function AdminProductListPage() {
         </Link>
       </div>
 
-      {isLoading && <p>불러오는 중...</p>}
       {error && <p className="form-error">{error}</p>}
 
+      {isLoading && <TableSkeleton rows={5} columns={7} />}
+
+      {!isLoading && (
       <div className="table-scroll">
       <table className="table">
         <thead>
@@ -144,6 +147,7 @@ export function AdminProductListPage() {
         </tbody>
       </table>
       </div>
+      )}
 
       {totalPages > 1 && (
         <div className="pagination">

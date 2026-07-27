@@ -258,6 +258,42 @@ main {
 }
 
 /* ============================================================
+   로딩 스켈레톤
+   ============================================================ */
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-soft) 25%,
+    var(--color-muted-soft) 37%,
+    var(--color-neutral-soft) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.skeleton-line {
+  display: block;
+  border-radius: var(--radius-sm);
+  margin: 8px 0;
+}
+
+/* ============================================================
    상품 목록 / 카드
    ============================================================ */
 

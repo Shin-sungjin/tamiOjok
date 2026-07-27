@@ -5,6 +5,7 @@ import * as ordersApi from '../api/orders'
 import * as paymentsApi from '../api/payments'
 import { extractErrorMessage } from '../api/errors'
 import { DeliveryTimeline } from '../components/DeliveryTimeline'
+import { SkeletonLine, TableSkeleton } from '../components/Skeleton'
 import type { DeliveryResponse, OrderResponse, PaymentResponse } from '../api/types'
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
@@ -109,7 +110,19 @@ export function OrderDetailPage() {
   }
 
   if (!order) {
-    return <p className="page">불러오는 중...</p>
+    return (
+      <div className="page" aria-hidden="true">
+        <SkeletonLine width="20%" height="0.9rem" />
+        <SkeletonLine width="45%" height="1.6rem" />
+        <SkeletonLine width="25%" height="0.9rem" />
+        <TableSkeleton rows={3} columns={3} />
+        <div className="detail-section">
+          <SkeletonLine width="30%" height="0.95rem" />
+          <SkeletonLine width="80%" />
+          <SkeletonLine width="60%" />
+        </div>
+      </div>
+    )
   }
 
   const canCancel = order.status === 'PENDING_PAYMENT' || order.status === 'PREPARING'
