@@ -73,14 +73,20 @@ public class Cart {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private Optional<CartItem> findItemByProduct(Long productId) {
-        return cartItems.stream().filter(item -> item.isForProduct(productId)).findFirst();
+    // 이미 담겨있는 수량까지 합쳐서 재고 검증을 해야 하므로(addItem은 기존 라인에
+    // 수량을 더하는 방식) 서비스 레이어에서 검증 전에 조회할 수 있도록 공개.
+    public int getQuantityForProduct(Long productId) {
+        return findItemByProduct(productId).map(CartItem::getQuantity).orElse(0);
     }
 
-    private CartItem getItemOrThrow(Long cartItemId) {
+    public CartItem getItemOrThrow(Long cartItemId) {
         return cartItems.stream()
                 .filter(item -> item.getId().equals(cartItemId))
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.CART_ITEM_NOT_FOUND));
+    }
+
+    private Optional<CartItem> findItemByProduct(Long productId) {
+        return cartItems.stream().filter(item -> item.isForProduct(productId)).findFirst();
     }
 }

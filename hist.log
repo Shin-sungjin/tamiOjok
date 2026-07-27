@@ -1,6 +1,7 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (테스트 코드 작성 착수 — 재고/쿠폰/결제 위변조 25개)
+마지막 갱신: 2026-07-27 (사용자 실사용 리포트 버그 6건 수정 — 찜목록 계정분리/
+장바구니 재고검증/주문상태 통합/반품사유 UI/재입고 상태복구/장바구니 배지)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -40,6 +41,9 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 30. PR #29 fix: 주문 취소 가능 여부 판단 버그 수정 (프론트 canCancel + 백엔드 OrderService.cancelOrder)
 31. PR #30 fix: 주문상세 상태 배지 통합 표시 + feat: 체크아웃 쿠폰 할인 실시간 미리보기
 32. (PR 예정) test: 재고 예약/차감, 쿠폰 할인 계산, 결제 금액 위변조 검증 테스트 25개 추가
+33. (PR 예정) fix: 사용자 실사용 리포트 버그 6건 (찜목록 계정별 분리, 장바구니
+    재고검증, 주문상태 표시 통합, 반품사유 선택 UI, 재입고 시 품절상태 자동
+    복구, 장바구니 배지 표시방식 변경) + 테스트 11개 추가
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -48,6 +52,44 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 "무슨 순서로, 왜, 어떤 이슈가 있었는지"에 집중해서 기록함.
 
 ---
+
+- 사용자 실사용 리포트 버그 6건 수정 (2026-07-27, PR 예정)
+  배경: quest.log의 "전체 기능 검증" 이후 사용자가 Docker로 띄운 앱을 직접
+  써보다가 두 차례에 걸쳐 신규 버그를 리포트함 — 찜 목록 계정 간 공유,
+  장바구니 배지 표시방식(사용자가 리포트 도중 선호를 정정: 수량합산이
+  아니라 상품종류 수), 재고 초과 담기, 주문 목록/상세 상태 불일치(실제
+  주문번호로 재현), 반품 사유 미입력, 재입고 후 품절 상태 미복구. 마지막에
+  리포트했던 7번째 항목("재고 10개 상품 10개 주문해도 품절 안 됨")은 사용자가
+  직접 "내가 잘못 확인한 것 같다"고 정정 — 실제 버그 아님, 수정 안 함.
+  - 찜목록: frontend/src/hooks/useWishlist.ts가 localStorage 키를 계정
+    구분 없이 하나만 쓰고 있었음 → user.id 기준으로 키 분리
+    (tamiojok_wishlist:{userId} / :guest), AuthContext user 변경 시 버킷
+    전환. 기존 모듈스코프 공유상태+listener 구독 패턴은 유지.
+  - 장바구니 배지: CartContext.tsx의 itemCount를 quantity 합산(reduce)에서
+    cart.items.length(상품 종류 수)로 변경.
+  - 장바구니 재고검증: Cart.getQuantityForProduct() 추가, CartService.
+    addItem/updateItemQuantity가 변경 후 수량을 ProductStockRepository
+    가용재고와 비교해 초과 시 INSUFFICIENT_STOCK. CartServiceTest 4개.
+  - 주문상태 통합: 고객용 OrderResponse에 deliveryStatus 필드가 아예
+    없었음(관리자용 AdminOrderResponse엔 이미 있었음) → OrderResponse.of
+    (order, delivery) 오버로드 신설, OrderService.getMyOrder(s)가 delivery
+    채워서 응답. 프론트는 utils/orderStatus.ts로 목록/상세 라벨 로직 통합.
+  - 반품 사유: V4 마이그레이션(deliveries.return_reason/return_detail),
+    ReturnReason enum, Delivery.requestReturn(reason, detail)로 시그니처
+    변경. 프론트에 사유 select + 상세 textarea 폼 추가. DeliveryTest 4개.
+  - 재입고 상태복구: StockService.restoreStock에 reviveIfOutOfStock() 추가
+    — OUT_OF_STOCK 상품이 재입고로 가용재고>0 되면 ON_SALE로 자동 전환
+    (HIDDEN은 안 건드림). StockServiceTest 3개.
+  - 검증: gradlew test(신규 11개 포함) 전체 통과 + Docker 프로덕션 빌드
+    재기동(Flyway V4 정상 적용 확인) + claude-in-chrome으로 qa-test-user/
+    hong@example.com/admin 세 계정을 오가며 6건 전부 실제 화면 조작으로
+    재현 검증 (계정별 찜목록 분리, 재고초과 시 에러메시지, 실제 리포트된
+    주문번호의 목록/상세 상태 일치, 반품사유 입력→표시까지 E2E, 관리자
+    화면에서 재입고 후 상태 뱃지 전환).
+  ※ 6건이 한 번의 사용자 리포트로 함께 들어왔고 서로 다른 도메인이라도
+    같은 세션에서 함께 고쳐졌기 때문에 커밋/PR도 하나로 묶음(도메인별로
+    쪼개지 않음) — 이전 세션들의 "버그 하나당 PR 하나" 패턴과 다른 판단.
+  상세 내용은 quest.log "사용자 실사용 중 발견한 버그 6건 수정" 항목 참고.
 
 - 테스트 코드 작성 착수 (2026-07-27, PR 예정)
   배경: 사용자가 "테스트 코드부터 작성해줘"라고 요청. quest.log의 "바이브

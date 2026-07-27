@@ -4,14 +4,8 @@ import * as ordersApi from '../api/orders'
 import { extractErrorMessage } from '../api/errors'
 import { TableSkeleton } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
+import { getOrderStatusLabel } from '../utils/orderStatus'
 import type { OrderResponse } from '../api/types'
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING_PAYMENT: '결제 대기',
-  PAYMENT_COMPLETED: '결제 완료',
-  PREPARING: '배송 준비중',
-  CANCELLED: '취소됨',
-}
 
 export function OrderListPage() {
   const [orders, setOrders] = useState<OrderResponse[]>([])
@@ -69,7 +63,7 @@ export function OrderListPage() {
                   <td>{order.orderNumber}</td>
                   <td>{itemPreview}</td>
                   <td>
-                    <span className="badge">{STATUS_LABEL[order.status] ?? order.status}</span>
+                    <span className="badge">{getOrderStatusLabel(order.status, order.deliveryStatus)}</span>
                   </td>
                   <td>{order.paymentAmount.toLocaleString()}원</td>
                   <td>{new Date(order.createdAt).toLocaleString()}</td>

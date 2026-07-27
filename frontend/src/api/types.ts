@@ -113,6 +113,7 @@ export interface OrderResponse {
   discountAmount: number
   paymentAmount: number
   items: OrderItemResponse[]
+  deliveryStatus: DeliveryStatus | null
   createdAt: string
 }
 
@@ -139,6 +140,8 @@ export interface PaymentResponse {
   paidAt: string | null
 }
 
+export type ReturnReason = 'CHANGE_OF_MIND' | 'DEFECTIVE_PRODUCT' | 'WRONG_DELIVERY' | 'OTHER'
+
 export interface DeliveryResponse {
   id: number
   orderId: number
@@ -147,6 +150,13 @@ export interface DeliveryResponse {
   status: DeliveryStatus
   shippedAt: string | null
   deliveredAt: string | null
+  returnReason: ReturnReason | null
+  returnDetail: string | null
+}
+
+export interface DeliveryReturnRequest {
+  reason: ReturnReason
+  detail?: string
 }
 
 export interface ReviewCreateRequest {
