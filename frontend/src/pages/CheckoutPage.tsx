@@ -7,6 +7,7 @@ import { extractErrorMessage } from '../api/errors'
 import { useCart } from '../context/CartContext'
 import { SkeletonLine, TableSkeleton } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
+import { calculateCouponDiscount } from '../utils/discount'
 import type { CartResponse, UserCouponResponse } from '../api/types'
 
 export function CheckoutPage() {
@@ -62,6 +63,10 @@ export function CheckoutPage() {
     )
   }
 
+  const selectedCoupon = coupons.find((c) => c.id === Number(selectedCouponId)) ?? null
+  const discountAmount = selectedCoupon ? calculateCouponDiscount(cart.totalAmount, selectedCoupon) : 0
+  const expectedPaymentAmount = cart.totalAmount - discountAmount
+
   return (
     <div className="page">
       <h1>주문서</h1>
@@ -98,8 +103,13 @@ export function CheckoutPage() {
         </select>
       </label>
 
+      <div className="order-amounts">
+        <p>상품 합계: {cart.totalAmount.toLocaleString()}원</p>
+        {selectedCoupon && <p>할인 금액: -{discountAmount.toLocaleString()}원</p>}
+        <p className="order-amounts__total">결제 예정 금액: {expectedPaymentAmount.toLocaleString()}원</p>
+      </div>
+
       <div className="cart-summary">
-        <span>상품 합계: {cart.totalAmount.toLocaleString()}원</span>
         <button type="button" onClick={handlePlaceOrder} disabled={isSubmitting}>
           {isSubmitting ? '주문 생성 중...' : '결제하기'}
         </button>
