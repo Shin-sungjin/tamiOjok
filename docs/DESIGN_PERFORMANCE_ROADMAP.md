@@ -36,15 +36,30 @@
 - [x] `index.html`에 `meta description`, `theme-color` 추가.
 - 검증: `gradlew compileJava compileTestJava` 통과, 프론트 `tsc -b && vite build` 통과.
 
-## 3. 다음 단계 백로그
+## 3. Lighthouse 베이스라인 실측 (2026-07-27)
 
-### P0 — 다음 세션에 바로 착수 가능 (근거 있는 실측 우선)
+Docker로 프로덕션 빌드(`docker compose up -d --build db backend frontend`)를 띄우고, `alpine/socat`으로 frontend 컨테이너를 호스트에 임시 릴레이(`localhost:18090`)한 뒤 `justinribeiro/lighthouse` 컨테이너로 측정. 체크아웃 페이지는 로그인 필요(액세스 토큰이 메모리에만 있고 저장소에 없어 스크립트로 로그인시키지 않으면 로그인 화면으로 리다이렉트됨) → 이번엔 제외, 대신 로그인 페이지로 대체.
+
+| 페이지 | Performance | Accessibility | Best Practices | SEO | LCP | TBT | CLS |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 상품 목록 (`/`) | 95 | 98 | 93 | 89 | 2.5s | 10ms | 0 |
+| 상품 상세 (`/products/1`) | 92 | 97 | 93 | 90 | 3.0s | 0ms | 0 |
+| 로그인 (`/login`) | 96 | 97 | 93 | 90 | 2.3s | 0ms | 0 |
+
+전반적으로 점수 자체는 이미 준수한 편(오늘 오전 코드 스플리팅/gzip 조치 이후 기준). 다만 감사 도중 아래 4-1 항목(특히 CORS 이슈)을 발견함 — 우선순위 낮은 점수 항목 튜닝보다 먼저 처리할 가치가 있음.
+
+## 4. 다음 단계 백로그
+
+### P0 — 다음 세션에 바로 착수 가능 (실측/재현으로 확인된 것 우선)
 
 | 항목 | 내용 | 비고 |
 | --- | --- | --- |
-| Lighthouse 베이스라인 측정 | 상품목록/상세/체크아웃 3개 페이지 실측 (Performance/Accessibility/Best Practices) | 이후 항목들의 우선순위를 실측 기반으로 재조정하기 위한 선행 작업 |
+| **CORS 화이트리스트 불일치로 POST 요청 403** | 4-1 참고 — 배포 안정성에 영향, 재현됨 | **심각도 높음**, 원인 파악 완료 |
+| nginx 정적 자산(JS/CSS) gzip 미적용 | 4-1 참고, 152KB(JS)+16KB(CSS) 절감 가능 | 오늘 백엔드 API는 압축했지만 정적 파일은 nginx가 서빙 — nginx.conf에 `gzip on` 필요 |
 | 로딩 스켈레톤 | 상품 카드/상세/주문목록 등 주요 리스트에 텍스트 대신 스켈레톤 UI | 체감 성능(perceived performance) 개선, 디자인 완성도 항목이기도 함 |
 | `:focus-visible` 스타일 정의 | 버튼/링크/인풋에 브랜드 컬러(`--color-accent`) 기반 포커스 링 추가 | 접근성, 구현 난이도 낮음 |
+| 찜하기 버튼 tap-target 겹침 | `.wishlist-btn`(32x32)이 카드 링크(`<a>`)와 겹쳐 Lighthouse가 "부적절한 탭 타겟"으로 지적 | 모바일 터치 정확도 문제, 실제 UX에도 영향 |
+| 상품 카드 텍스트 명도 대비 부족 | `.product-card__image-placeholder`(3.77:1), `.rating-stars__count`(4.15:1) — WCAG AA 기준(4.5:1) 미달 | `--color-text-muted` 톤 조정 또는 해당 요소만 진하게 |
 
 ### P1 — 조사/의사결정 후 진행
 
@@ -63,7 +78,64 @@
 | 웹폰트(Pretendard) 실제 로드 | 서브셋 + `font-display: swap`으로 자체 호스팅 | 브랜드 폰트 도입은 성능 비용(다운로드)이 있어 우선순위 낮게 책정 — 디자인 쪽에서 필요성 재확인 필요 |
 | DB 인덱스 점검 | 상품 검색(`nameContainingIgnoreCase`)이 데이터 늘어나면 풀스캔 가능성 | 현재 시드 데이터 규모에선 문제 없음, 운영 데이터 기준 재점검 |
 
-## 4. 참고
+## 4-1. 발견된 이슈 상세
+
+### 🔴 CORS 화이트리스트 불일치 시 모든 POST 요청 403 (배포 안정성)
+
+Lighthouse 감사 중 `/api/v1/track/visit`(공개 엔드포인트, `permitAll`)이 403을 반환하는 걸
+발견 — 최초엔 Lighthouse 컨테이너의 특이 동작인 줄 알았으나, `claude-in-chrome`으로 실제
+브라우저에서 재현하고 curl로 원인을 좁혀서 확인함.
+
+**원인**: 브라우저는 same-origin POST 요청에도 `Origin` 헤더를 항상 붙이는데, Spring
+Security의 CORS 필터는 `Origin` 헤더가 존재하면 same-origin 여부와 무관하게
+`app.cors.allowed-origins`(`CORS_ALLOWED_ORIGINS`) 화이트리스트와 대조해서, 없으면
+403으로 막아버림. `curl`은 `Origin` 헤더를 안 보내므로 이 문제를 재현하지 못했음
+(그래서 처음엔 정상으로 보였음).
+
+```
+Origin 헤더 없음(curl)                    → 204 (통과)
+Origin: http://localhost:18090 (화이트리스트에 없음) → 403
+Origin: http://localhost:5173  (화이트리스트에 있음) → 204 (통과)
+```
+
+**왜 지금 안 걸리는가 / 언제 터지는가**: 현재 `.env`의 `CORS_ALLOWED_ORIGINS`에는
+`http://localhost:5173`(vite dev)과 당시 Cloudflare Quick Tunnel URL이 등록돼 있어서
+그 두 경로로 접속하면 문제없이 동작함. 하지만 `infra_setup.md`/`hist.log`에 이미 기록된
+대로 Quick Tunnel URL은 컨테이너 재기동마다 바뀜 — URL이 바뀐 뒤 `.env`를 안 고치고
+그대로 쓰면, nginx가 프론트/API를 같은 origin으로 프록시해주는 구조임에도 불구하고
+**로그인, 주문 생성, 장바구니 담기 등 모든 POST/PUT/DELETE 요청이 조용히 403으로
+막힘** (에러 메시지가 사용자에게 명확히 안 보일 수 있어 "그냥 안 되는 사이트"로
+보일 위험).
+
+**제안하는 해결 방향** (다음 세션에서 결정/적용):
+- 근본 해결: nginx가 프론트+API를 같은 origin으로 묶어주는 구조이므로, "same-origin
+  요청은 애초에 Origin 검증이 필요 없다"는 전제에 맞게 백엔드 CORS 설정을 same-origin
+  요청엔 관대하게(또는 nginx 선에서 Origin 헤더를 제거/정규화) 바꾸는 방법 검토.
+- 운영상 임시 해결: Named Tunnel(고정 도메인)로 전환해 URL 고정 — 이미
+  `infra_setup.md`/`hist.log`에 "다음 할 일"로 있던 항목이라 이 문제 해결의 우선순위를
+  높여줄 근거가 됨.
+
+### 🟡 nginx가 정적 자산(JS/CSS)에 gzip을 안 걸어줌
+
+오늘 백엔드(`server.compression.enabled=true`)는 압축을 켰지만, 프론트 정적 파일은
+nginx가 직접 서빙하고 있어 별개로 설정해야 함. Lighthouse가 메인 JS 228KB 중 152KB,
+CSS 20KB 중 16KB를 압축으로 줄일 수 있다고 지적. `frontend/nginx.conf`의 `http`/`server`
+블록에 `gzip on; gzip_types text/css application/javascript ...;` 추가하면 해결됨.
+
+### 🟡 접근성: 명도 대비 부족 + 찜하기 버튼 탭 타겟 겹침
+
+- `--color-text-muted`(#857b6f)를 밝은 배경 위 작은 텍스트(품절 placeholder, 리뷰 개수)에
+  쓸 때 WCAG AA 기준(4.5:1)에 못 미침 (측정값 3.77~4.15:1).
+- `.wishlist-btn`(32×32)이 상품 카드 전체를 감싸는 `<a>` 링크와 영역이 겹쳐서, 모바일에서
+  찜하기를 누르려다 상품 상세로 이동해버릴 수 있음.
+
+### 🟢 `robots.txt` 없음
+
+파일 자체가 없어 요청 시 `index.html`로 폴백됨 (SPA 라우팅 규칙 때문). SEO 감사에서
+"문법을 이해할 수 없음" 대량 오류로 잡힘 — `frontend/public/robots.txt` 파일 하나
+추가하면 해결되는 사소한 항목.
+
+## 5. 참고
 
 - `quest.log`의 "바이브 코딩 졸업 로드맵"과 별개 트랙 — 저긴 테스트/CI/PG연동 등 엔지니어링 기반 작업, 이 문서는 사용자 대면 디자인/성능 작업.
 - 진행 내역은 계속 `hist.log`에 기록.
