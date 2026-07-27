@@ -4,6 +4,7 @@ Spring Boot 기반 B2C 이커머스 백엔드 프로젝트입니다. 회원가�
 
 - 상세 기획/요구사항: [`PRD.md`](./PRD.md)
 - 사용 방법(회원가입부터 주문/결제까지 전체 흐름과 API 예시): [`docs/USER_MANUAL.md`](./docs/USER_MANUAL.md)
+- 디자인/성능 고도화 로드맵: [`docs/DESIGN_PERFORMANCE_ROADMAP.md`](./docs/DESIGN_PERFORMANCE_ROADMAP.md)
 - DB 스키마 및 더미 데이터: [`db/schema.sql`](./db/schema.sql), [`db/seed.sql`](./db/seed.sql)
 - 프론트엔드(React + TypeScript + Vite, 학습용 최소 스캐폴딩): [`frontend/`](./frontend/README.md)
 

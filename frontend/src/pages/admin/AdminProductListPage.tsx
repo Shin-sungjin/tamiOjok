@@ -95,7 +95,7 @@ export function AdminProductListPage() {
               <td>
                 <div className="admin-table-thumb">
                   {product.imageUrls[0] ? (
-                    <img src={product.imageUrls[0]} alt={product.name} />
+                    <img src={product.imageUrls[0]} alt={product.name} loading="lazy" />
                   ) : (
                     <span>-</span>
                   )}
