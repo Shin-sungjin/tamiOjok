@@ -6,6 +6,7 @@ import * as ordersApi from '../api/orders'
 import { extractErrorMessage } from '../api/errors'
 import { useCart } from '../context/CartContext'
 import { SkeletonLine, TableSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { CartResponse, UserCouponResponse } from '../api/types'
 
 export function CheckoutPage() {
@@ -56,7 +57,7 @@ export function CheckoutPage() {
     return (
       <div className="page">
         <h1>주문서</h1>
-        <p>장바구니가 비어있어 주문할 수 없습니다.</p>
+        <EmptyState icon="🛒" message="장바구니가 비어있어 주문할 수 없습니다." actionLabel="장바구니로 이동" actionTo="/cart" />
       </div>
     )
   }

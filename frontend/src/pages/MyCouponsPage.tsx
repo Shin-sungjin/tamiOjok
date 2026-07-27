@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as couponsApi from '../api/coupons'
 import { extractErrorMessage } from '../api/errors'
 import { CardListSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { UserCouponResponse } from '../api/types'
 
 export function MyCouponsPage() {
@@ -21,7 +22,9 @@ export function MyCouponsPage() {
     <div className="page">
       <h1>내 쿠폰함</h1>
       {error && <p className="form-error">{error}</p>}
-      {!isLoading && coupons.length === 0 && <p>보유한 쿠폰이 없습니다.</p>}
+      {!isLoading && coupons.length === 0 && (
+        <EmptyState icon="🎟️" message="보유한 쿠폰이 없습니다." actionLabel="쿠폰 받으러 가기" actionTo="/coupons" />
+      )}
 
       {isLoading ? (
         <CardListSkeleton />

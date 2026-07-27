@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import * as cartApi from '../api/cart'
 import { extractErrorMessage } from '../api/errors'
 import { useCart } from '../context/CartContext'
 import { SkeletonLine, TableSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 
 export function CartPage() {
   const navigate = useNavigate()
@@ -53,7 +54,7 @@ export function CartPage() {
       {error && <p className="form-error">{error}</p>}
 
       {!cart || cart.items.length === 0 ? (
-        <p>장바구니가 비어있습니다. <Link to="/">상품 보러 가기</Link></p>
+        <EmptyState icon="🛒" message="장바구니가 비어있습니다." actionLabel="상품 보러 가기" actionTo="/" />
       ) : (
         <>
           <div className="table-scroll">

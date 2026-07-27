@@ -685,6 +685,43 @@ main {
 }
 
 /* ============================================================
+   빈 상태 (empty state)
+   ============================================================ */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(32px, 8vw, 56px) 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty-state__icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.empty-state__message {
+  margin: 0;
+}
+
+.empty-state__action {
+  margin-top: 6px;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+
+.empty-state__action:hover {
+  background: var(--color-primary-hover);
+}
+
+/* ============================================================
    목록/공통
    ============================================================ */
 

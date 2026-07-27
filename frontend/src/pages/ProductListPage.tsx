@@ -7,6 +7,7 @@ import { PriceDisplay } from '../components/PriceDisplay'
 import { RatingStars } from '../components/RatingStars'
 import { WishlistButton } from '../components/WishlistButton'
 import { ProductGridSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { ProductResponse } from '../api/types'
 
 export function ProductListPage() {
@@ -39,7 +40,9 @@ export function ProductListPage() {
     <div className="page">
       <h1>{keyword ? `'${keyword}' 검색결과` : '상품 목록'}</h1>
       {error && <p className="form-error">{error}</p>}
-      {!isLoading && !error && products.length === 0 && <p>검색 결과가 없습니다.</p>}
+      {!isLoading && !error && products.length === 0 && (
+        <EmptyState icon="🔍" message="검색 결과가 없습니다." />
+      )}
 
       {isLoading ? (
         <ProductGridSkeleton />
