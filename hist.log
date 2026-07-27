@@ -1,6 +1,6 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (전체 기능 End-to-End 검증 + 버그 2건 발견)
+마지막 갱신: 2026-07-27 (canCancel 버그 수정 — 프론트+백엔드 둘 다)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -37,6 +37,7 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 27. PR #26 feat: 브랜드 파비콘 + 빈 상태(empty state) UI + 쿠폰 API 응답 캐싱
 28. PR #27 docs: 이미지 파이프라인 방향 결정 기록(보류)
 29. (PR 없음, 문서만) 전체 기능 End-to-End 검증 + 버그 2건 발견, quest.log에 기록
+30. (PR 예정) fix: 주문 취소 가능 여부 판단 버그 수정 (프론트 canCancel + 백엔드 OrderService.cancelOrder)
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -46,7 +47,41 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 
 ---
 
-- 전체 기능 End-to-End 검증 (2026-07-27, PR 없음 — quest.log/hist.log 문서만)
+- 주문 취소 가능 여부 판단 버그 수정 (2026-07-27, PR 예정)
+  배경: 사용자가 직전 검증에서 발견한 canCancel 버그부터 고쳐달라고 요청.
+  수정하려고 파고들다가 프론트만이 아니라 백엔드에도 관련된 허점이
+  있다는 걸 발견해서 둘 다 고침.
+  - 백엔드: OrderService.cancelOrder가 Delivery.isPostShipment()
+    (SHIPPED/IN_TRANSIT/DELIVERED만 포함, RETURN_REQUESTED 빠짐)로
+    "이미 배송 시작됐는지"를 판단하고 있어서, 반품 요청 이후에 취소
+    API를 직접 호출하면(프론트 우회) 실제로 취소가 통과되는 허점이
+    있었음 — curl로 재현 확인. 배송 레코드는 등록 즉시 IN_TRANSIT으로
+    시작해 SHIPPED 단계가 없는 구조라, "배송 레코드가 하나라도
+    존재하면 이미 배송 시작"이 맞는 기준 — deliveryRepository
+    .findByOrder(order).isPresent() 기준으로 교체. Delivery
+    .isPostShipment()는 그대로 두고(requestReturn()의 "반품 가능
+    상태인지" 판단용으로는 여전히 맞는 의미라서), OrderService에서만
+    다른 판단 기준을 씀. Delivery import가 이제 안 쓰여서 같이 제거.
+  - 프론트: canCancel에 PAYMENT_COMPLETED 추가(원래 order.status가
+    PENDING_PAYMENT/PREPARING일 때만 보였는데, 백엔드
+    Order.isCancellableWithStockReturn()은 PAYMENT_COMPLETED도 취소
+    가능으로 보고 있어서 결제완료~배송등록 사이엔 취소 버튼 자체가
+    안 뜨는 별도 버그였음 — 겸사겸사 같이 고침), `&& !delivery` 조건
+    추가.
+  - 신규 테스트: OrderServiceTest 작성 (배송 레코드 존재 시 취소
+    ORDER_ALREADY_SHIPPED로 거부 + 재고 복원 안 됨, 배송 레코드 없을
+    때 취소 성공 + 재고 복원됨 2개 케이스). OrderService 전체가 처음
+    테스트를 갖게 됨 — Mockito 기반, User/Order/Product 엔티티는
+    ReflectionTestUtils로 id 세팅.
+  - 검증: gradlew test 통과. Docker 재빌드 후 실제로 이전 세션에서
+    반품요청 상태까지 만들어뒀던 주문(#9)으로 재확인 — 프론트에서
+    취소 버튼 사라진 것 확인, curl로 로그인 토큰 받아서
+    DELETE /api/v1/orders/9 직접 호출해 409 ORDER_ALREADY_SHIPPED
+    응답 확인(수정 전이었다면 200 성공했을 케이스).
+  - quest.log의 버그 1번 항목 [x] 해결됨으로 갱신.
+  ※ 임시 docker 리소스(vibe-frontend-proxy-tmp, compose 스택)는 세션 종료 시 정리.
+
+- 전체 기능 End-to-End 검증 (2026-07-27, PR #28)
   배경: 사용자가 "지금까지의 이력으로 확인했을 때 모든 기능이 동작하는지
   확인하고 앞으로 고도화 할 부분을 남겨달라"고 요청. 코드 리딩이 아니라
   Docker 프로덕션 빌드를 실제로 띄우고 claude-in-chrome으로 신규
@@ -510,9 +545,11 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
    보류 — 실제 상품 사진 준비되면 docs/DESIGN_PERFORMANCE_ROADMAP.md 참고해
    재논의). 다음은 P2(관리자 테이블 가상화, 웹폰트 실로드, DB 인덱스 점검)
    또는 quest.log의 "바이브 코딩 졸업 로드맵"(테스트 코드/CI/PG연동 등)
-6. 2026-07-27 전체 기능 검증에서 발견한 버그 수정 (quest.log
-   "[2026-07-27] 전체 기능 검증" 섹션 참고) — 우선순위 높음:
-   OrderDetailPage canCancel이 배송상태 안 봐서 배송완료 후에도 취소
-   버튼이 남아있는 프론트 버그(서버는 안전하게 막고 있음, UX만 문제)
+6. 2026-07-27 전체 기능 검증에서 발견한 나머지 버그 수정 (quest.log
+   "[2026-07-27] 전체 기능 검증" 섹션 참고) — canCancel(버그 1)은
+   2026-07-27에 프론트+백엔드 둘 다 수정 완료. 남은 것:
+   - 버그 2: 주문상태/배송상태 표시 체계 정리 (배송완료 후에도 상단
+     배지가 "배송 준비중"으로 보이는 문제)
+   - 버그 3: 체크아웃 쿠폰 할인 실시간 미리보기 (사소, UX 갭)
 
 ========================================================================

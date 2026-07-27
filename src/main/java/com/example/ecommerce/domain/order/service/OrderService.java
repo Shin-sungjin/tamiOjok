@@ -5,7 +5,6 @@ import com.example.ecommerce.domain.cart.entity.CartItem;
 import com.example.ecommerce.domain.cart.repository.CartRepository;
 import com.example.ecommerce.domain.coupon.entity.UserCoupon;
 import com.example.ecommerce.domain.coupon.repository.UserCouponRepository;
-import com.example.ecommerce.domain.delivery.entity.Delivery;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest.OrderItemRequest;
@@ -130,10 +129,14 @@ public class OrderService {
         Order order = getOrderOrThrow(orderId);
         validateOwnership(order, userId);
 
-        boolean isShipped = deliveryRepository.findByOrder(order)
-                .map(Delivery::isPostShipment)
-                .orElse(false);
-        if (isShipped) {
+        // 배송 레코드는 등록되는 즉시 IN_TRANSIT으로 시작해 SHIPPED 단계가 없고
+        // (Delivery 생성자 참고), RETURN_REQUESTED도 배송이 시작된 이후에만 될 수
+        // 있으므로, 배송 레코드가 하나라도 존재하면 이미 배송이 시작된 것으로 본다.
+        // (Delivery.isPostShipment()는 SHIPPED/IN_TRANSIT/DELIVERED만 포함하고
+        // RETURN_REQUESTED는 빠져 있어서, 반품 요청 후에도 취소가 가능해지는
+        // 버그가 있었음 — 배송 레코드 존재 여부로 판단하도록 수정)
+        boolean hasDelivery = deliveryRepository.findByOrder(order).isPresent();
+        if (hasDelivery) {
             throw new CustomException(ErrorCode.ORDER_ALREADY_SHIPPED);
         }
 

@@ -125,7 +125,15 @@ export function OrderDetailPage() {
     )
   }
 
-  const canCancel = order.status === 'PENDING_PAYMENT' || order.status === 'PREPARING'
+  // 배송 레코드가 등록되면(반품요청 포함, 배송 도메인은 등록 즉시 IN_TRANSIT으로
+  // 시작해 SHIPPED 단계가 없음) 서버가 취소를 막으므로, order.status만으로는
+  // 판단하지 못했던 걸 delivery 존재 여부로 보강. PAYMENT_COMPLETED도 배송
+  // 등록 전이면 취소 가능한 상태라 조건에 포함(기존엔 빠져 있었음).
+  const canCancel =
+    (order.status === 'PENDING_PAYMENT' ||
+      order.status === 'PAYMENT_COMPLETED' ||
+      order.status === 'PREPARING') &&
+    !delivery
   const canRequestReturn = delivery?.status === 'DELIVERED'
 
   return (
