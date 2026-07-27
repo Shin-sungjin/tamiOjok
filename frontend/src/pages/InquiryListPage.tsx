@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as inquiriesApi from '../api/inquiries'
 import { extractErrorMessage } from '../api/errors'
 import { CardListSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { InquiryResponse } from '../api/types'
 
 export function InquiryListPage() {
@@ -27,7 +28,7 @@ export function InquiryListPage() {
         </Link>
       </div>
       {error && <p className="form-error">{error}</p>}
-      {!isLoading && inquiries.length === 0 && <p>문의 내역이 없습니다.</p>}
+      {!isLoading && inquiries.length === 0 && <EmptyState icon="💬" message="문의 내역이 없습니다." />}
 
       {isLoading ? (
         <CardListSkeleton />

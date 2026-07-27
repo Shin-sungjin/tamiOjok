@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as ordersApi from '../api/orders'
 import { extractErrorMessage } from '../api/errors'
 import { TableSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { OrderResponse } from '../api/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -36,7 +37,9 @@ export function OrderListPage() {
       <h1>주문 내역</h1>
       {error && <p className="form-error">{error}</p>}
 
-      {!isLoading && orders.length === 0 && <p>주문 내역이 없습니다.</p>}
+      {!isLoading && orders.length === 0 && (
+        <EmptyState icon="📦" message="주문 내역이 없습니다." actionLabel="상품 보러 가기" actionTo="/" />
+      )}
 
       {isLoading && <TableSkeleton rows={5} columns={6} />}
 

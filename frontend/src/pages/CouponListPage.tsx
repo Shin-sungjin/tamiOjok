@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as couponsApi from '../api/coupons'
 import { extractErrorMessage } from '../api/errors'
 import { CardListSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { CouponResponse } from '../api/types'
 
 export function CouponListPage() {
@@ -38,7 +39,7 @@ export function CouponListPage() {
       </div>
       {error && <p className="form-error">{error}</p>}
       {message && <p>{message}</p>}
-      {!isLoading && coupons.length === 0 && <p>발급 가능한 쿠폰이 없습니다.</p>}
+      {!isLoading && coupons.length === 0 && <EmptyState icon="🎟️" message="발급 가능한 쿠폰이 없습니다." />}
 
       {isLoading ? (
         <CardListSkeleton />

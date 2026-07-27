@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as reviewsApi from '../api/reviews'
 import { extractErrorMessage } from '../api/errors'
 import { CardListSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { ReviewResponse } from '../api/types'
 
 export function MyReviewsPage() {
@@ -61,7 +62,9 @@ export function MyReviewsPage() {
     <div className="page">
       <h1>내 리뷰</h1>
       {error && <p className="form-error">{error}</p>}
-      {reviews.length === 0 && <p>작성한 리뷰가 없습니다.</p>}
+      {reviews.length === 0 && (
+        <EmptyState icon="✍️" message="작성한 리뷰가 없습니다." actionLabel="주문 내역 보기" actionTo="/orders" />
+      )}
 
       <ul className="list">
         {reviews.map((review) => (

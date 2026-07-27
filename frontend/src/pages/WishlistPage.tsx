@@ -7,6 +7,7 @@ import { RatingStars } from '../components/RatingStars'
 import { WishlistButton } from '../components/WishlistButton'
 import { PriceDisplay } from '../components/PriceDisplay'
 import { ProductGridSkeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { ProductResponse } from '../api/types'
 
 export function WishlistPage() {
@@ -32,9 +33,7 @@ export function WishlistPage() {
     <div className="page">
       <h1>찜한 상품</h1>
       {!isLoading && products.length === 0 && (
-        <p>
-          찜한 상품이 없습니다. <Link to="/">상품 보러 가기</Link>
-        </p>
+        <EmptyState icon="🤍" message="찜한 상품이 없습니다." actionLabel="상품 보러 가기" actionTo="/" />
       )}
 
       {isLoading ? (
