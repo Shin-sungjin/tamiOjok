@@ -5,6 +5,7 @@ import com.example.ecommerce.domain.cart.entity.CartItem;
 import com.example.ecommerce.domain.cart.repository.CartRepository;
 import com.example.ecommerce.domain.coupon.entity.UserCoupon;
 import com.example.ecommerce.domain.coupon.repository.UserCouponRepository;
+import com.example.ecommerce.domain.delivery.entity.Delivery;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest.OrderItemRequest;
@@ -23,7 +24,9 @@ import com.example.ecommerce.global.exception.CustomException;
 import com.example.ecommerce.global.exception.ErrorCode;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -121,8 +124,9 @@ public class OrderService {
     public Page<OrderResponse> getMyOrders(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        return orderRepository.findByUser(user, pageable)
-                .map(order -> OrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null)));
+        Page<Order> orders = orderRepository.findByUser(user, pageable);
+        Map<Long, Delivery> deliveriesByOrderId = deliveriesByOrderId(orders.getContent());
+        return orders.map(order -> OrderResponse.of(order, deliveriesByOrderId.get(order.getId())));
     }
 
     @Transactional
@@ -187,12 +191,21 @@ public class OrderService {
         Page<Order> orders = status != null
                 ? orderRepository.findByStatus(status, pageable)
                 : orderRepository.findAll(pageable);
-        return orders.map(order -> AdminOrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null)));
+        Map<Long, Delivery> deliveriesByOrderId = deliveriesByOrderId(orders.getContent());
+        return orders.map(order -> AdminOrderResponse.of(order, deliveriesByOrderId.get(order.getId())));
     }
 
     public AdminOrderResponse getOrderForAdmin(Long orderId) {
         Order order = getOrderOrThrow(orderId);
         return AdminOrderResponse.of(order, deliveryRepository.findByOrder(order).orElse(null));
+    }
+
+    private Map<Long, Delivery> deliveriesByOrderId(List<Order> orders) {
+        if (orders.isEmpty()) {
+            return Map.of();
+        }
+        return deliveryRepository.findByOrderIn(orders).stream()
+                .collect(Collectors.toMap(delivery -> delivery.getOrder().getId(), delivery -> delivery));
     }
 
     private OrderItem toOrderItem(OrderItemRequest itemRequest) {
