@@ -89,7 +89,7 @@ export function AdminProductFormPage() {
                   }
                   onClick={() => setActiveImage(index)}
                 >
-                  <img src={url} alt={`이미지 ${index + 1}`} />
+                  <img src={url} alt={`이미지 ${index + 1}`} loading="lazy" />
                 </button>
               ))}
             </div>

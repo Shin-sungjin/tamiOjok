@@ -126,7 +126,7 @@ export function ProductDetailPage() {
                   }
                   onClick={() => setActiveImage(index)}
                 >
-                  <img src={url} alt={`${product.name} ${index + 1}`} />
+                  <img src={url} alt={`${product.name} ${index + 1}`} loading="lazy" />
                 </button>
               ))}
             </div>

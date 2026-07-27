@@ -1,33 +1,58 @@
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Header } from './components/Header'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminRoute } from './components/AdminRoute'
-import { AdminLayout } from './components/AdminLayout'
-import { LoginPage } from './pages/LoginPage'
-import { SignupPage } from './pages/SignupPage'
 import { ProductListPage } from './pages/ProductListPage'
-import { ProductDetailPage } from './pages/ProductDetailPage'
-import { WishlistPage } from './pages/WishlistPage'
-import { CartPage } from './pages/CartPage'
-import { CheckoutPage } from './pages/CheckoutPage'
-import { OrderListPage } from './pages/OrderListPage'
-import { OrderDetailPage } from './pages/OrderDetailPage'
-import { ReviewFormPage } from './pages/ReviewFormPage'
-import { MyReviewsPage } from './pages/MyReviewsPage'
-import { InquiryListPage } from './pages/InquiryListPage'
-import { InquiryCreatePage } from './pages/InquiryCreatePage'
-import { InquiryDetailPage } from './pages/InquiryDetailPage'
-import { CouponListPage } from './pages/CouponListPage'
-import { MyCouponsPage } from './pages/MyCouponsPage'
-import { AdditionalInfoPage } from './pages/AdditionalInfoPage'
-import { MyPage } from './pages/MyPage'
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
-import { AdminProductListPage } from './pages/admin/AdminProductListPage'
-import { AdminProductFormPage } from './pages/admin/AdminProductFormPage'
-import { AdminOrderListPage } from './pages/admin/AdminOrderListPage'
-import { AdminInquiryListPage } from './pages/admin/AdminInquiryListPage'
 import { trackVisitOnce } from './api/track'
+
+const AdminLayout = lazy(() => import('./components/AdminLayout').then((m) => ({ default: m.AdminLayout })))
+const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })))
+const SignupPage = lazy(() => import('./pages/SignupPage').then((m) => ({ default: m.SignupPage })))
+const ProductDetailPage = lazy(() =>
+  import('./pages/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage })),
+)
+const WishlistPage = lazy(() => import('./pages/WishlistPage').then((m) => ({ default: m.WishlistPage })))
+const CartPage = lazy(() => import('./pages/CartPage').then((m) => ({ default: m.CartPage })))
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })))
+const OrderListPage = lazy(() => import('./pages/OrderListPage').then((m) => ({ default: m.OrderListPage })))
+const OrderDetailPage = lazy(() =>
+  import('./pages/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage })),
+)
+const ReviewFormPage = lazy(() => import('./pages/ReviewFormPage').then((m) => ({ default: m.ReviewFormPage })))
+const MyReviewsPage = lazy(() => import('./pages/MyReviewsPage').then((m) => ({ default: m.MyReviewsPage })))
+const InquiryListPage = lazy(() =>
+  import('./pages/InquiryListPage').then((m) => ({ default: m.InquiryListPage })),
+)
+const InquiryCreatePage = lazy(() =>
+  import('./pages/InquiryCreatePage').then((m) => ({ default: m.InquiryCreatePage })),
+)
+const InquiryDetailPage = lazy(() =>
+  import('./pages/InquiryDetailPage').then((m) => ({ default: m.InquiryDetailPage })),
+)
+const CouponListPage = lazy(() =>
+  import('./pages/CouponListPage').then((m) => ({ default: m.CouponListPage })),
+)
+const MyCouponsPage = lazy(() => import('./pages/MyCouponsPage').then((m) => ({ default: m.MyCouponsPage })))
+const AdditionalInfoPage = lazy(() =>
+  import('./pages/AdditionalInfoPage').then((m) => ({ default: m.AdditionalInfoPage })),
+)
+const MyPage = lazy(() => import('./pages/MyPage').then((m) => ({ default: m.MyPage })))
+const AdminDashboardPage = lazy(() =>
+  import('./pages/admin/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })),
+)
+const AdminProductListPage = lazy(() =>
+  import('./pages/admin/AdminProductListPage').then((m) => ({ default: m.AdminProductListPage })),
+)
+const AdminProductFormPage = lazy(() =>
+  import('./pages/admin/AdminProductFormPage').then((m) => ({ default: m.AdminProductFormPage })),
+)
+const AdminOrderListPage = lazy(() =>
+  import('./pages/admin/AdminOrderListPage').then((m) => ({ default: m.AdminOrderListPage })),
+)
+const AdminInquiryListPage = lazy(() =>
+  import('./pages/admin/AdminInquiryListPage').then((m) => ({ default: m.AdminInquiryListPage })),
+)
 
 function App() {
   useEffect(() => {
@@ -38,6 +63,7 @@ function App() {
     <>
       <Header />
       <main>
+        <Suspense fallback={<p className="page">불러오는 중...</p>}>
         <Routes>
           <Route path="/" element={<ProductListPage />} />
           <Route path="/products/:productId" element={<ProductDetailPage />} />
@@ -166,6 +192,7 @@ function App() {
             <Route path="inquiries" element={<AdminInquiryListPage />} />
           </Route>
         </Routes>
+        </Suspense>
       </main>
     </>
   )
