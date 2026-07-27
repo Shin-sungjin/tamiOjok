@@ -1,6 +1,6 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (디자인/성능 고도화 로드맵 + 1차 성능 개선)
+마지막 갱신: 2026-07-27 (Lighthouse 베이스라인 실측 + CORS 403 버그 발견)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -28,7 +28,8 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 18. PR #17 feat: 관리자 대시보드 + 상품 다중이미지 + 관리자 UI 폴리싱
 19. PR #18 feat: 다크 헤더 브랜딩 + 별점/찜하기/바로구매
 20. PR #19 feat: 헤더 검색/장바구니뱃지/찜목록 + 결제·배송 상세 정보
-21. (PR 예정) perf: 라우트 코드 스플리팅 + gzip 압축 + lazy loading 보강, docs: 디자인/성능 로드맵 문서 신설
+21. PR #20 perf: 라우트 코드 스플리팅 + gzip 압축 + lazy loading 보강, docs: 디자인/성능 로드맵 문서 신설
+22. (PR 예정) docs: Lighthouse 베이스라인 실측 결과 + CORS 403 버그 발견 기록
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -40,7 +41,36 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 
 [완료된 작업 상세]
 
-- 디자인/성능 고도화 로드맵 + 1차 성능 개선 (2026-07-27, PR 예정)
+- Lighthouse 베이스라인 실측 + CORS 403 버그 발견 (2026-07-27, PR 예정)
+  배경: 로드맵 문서의 P0 항목 중 "Lighthouse 베이스라인 측정"을 사용자가 지목해서 진행.
+  - docker compose로 프로덕션 빌드(db/backend/frontend)를 띄우고, alpine/socat으로
+    frontend 컨테이너를 호스트 18090 포트로 임시 릴레이(util.log 패턴 재사용),
+    justinribeiro/lighthouse 컨테이너로 상품목록/상품상세/로그인 3개 페이지 실측.
+    (femtopixel/google-lighthouse 이미지는 인자 파싱 방식이 안 맞아 실패 → 대체)
+    체크아웃은 인증 필요(액세스 토큰이 메모리에만 있어 스크립트 로그인 없이는 접근
+    불가)라 이번엔 제외.
+  - 결과: 상품목록 Perf 95/A11y 98/BP 93/SEO 89, 상품상세 92/97/93/90, 로그인
+    96/97/93/90. 전반적으로 이미 양호한 수준.
+  - 감사 도중 `/api/v1/track/visit`(permitAll 공개 엔드포인트)이 403을 반환하는 걸
+    발견. curl로는 재현 안 되고 claude-in-chrome 실제 브라우저에서는 재현되길래
+    원인을 파고듦 → 브라우저는 same-origin POST에도 Origin 헤더를 항상 붙이는데,
+    Spring Security CORS 필터가 Origin 헤더 존재 시 same-origin 여부와 무관하게
+    CORS_ALLOWED_ORIGINS 화이트리스트와 대조해서 없으면 403으로 막는 것으로 확인
+    (curl -H "Origin: ..." 로 화이트리스트 안/밖 비교해서 검증 완료). 현재는
+    .env의 화이트리스트에 5173/현재 Cloudflare Quick Tunnel URL이 있어서 안
+    걸리지만, Quick Tunnel URL이 재기동마다 바뀌는 걸 감안하면 재기동 후 .env를
+    안 고치면 로그인/주문 등 모든 POST 요청이 조용히 막힐 수 있는 잠재 버그 —
+    아직 수정은 안 하고 docs/DESIGN_PERFORMANCE_ROADMAP.md에 원인/재현방법/해결
+    방향까지 기록만 해둠 (해결 방향 결정은 다음 세션에 사용자와 논의 필요).
+  - 추가로 nginx가 정적 JS/CSS에 gzip을 안 걸고 있는 것(152KB+16KB 절감 가능),
+    명도 대비 부족 2건, 찜하기 버튼과 카드 링크 탭 타겟 겹침, robots.txt 부재를
+    발견해 로드맵 P0/P1에 반영.
+  - docs/DESIGN_PERFORMANCE_ROADMAP.md에 "Lighthouse 베이스라인 실측" +
+    "발견된 이슈 상세" 섹션 추가.
+  ※ 작업 후 임시로 띄운 vibe-frontend-proxy-tmp(socat), docker compose 스택
+    (db/backend/frontend)은 세션 종료 시 정리함.
+
+- 디자인/성능 고도화 로드맵 + 1차 성능 개선 (2026-07-27, PR #20)
   배경: 사용자가 "웹 프로젝트 디자인 & 성능 고도화 진행 및 일정 리스트 문서 제작" 요청.
   범위를 물어봤더니 "문서 + 오늘 바로 착수 가능한 항목 구현", 디자인 방향은
   "기존 톤(다크헤더+골드) 유지, 완성도만 올리기"로 확인받고 진행.
@@ -289,6 +319,7 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
    - 로깅/모니터링, 보안 점검 (/security-review)
 4. DB 백업 전략 마련 (현재 named volume만 있고 백업 스크립트 없음)
 5. 디자인/성능 고도화 P0 항목 진행 (docs/DESIGN_PERFORMANCE_ROADMAP.md 참고)
-   — Lighthouse 베이스라인 측정, 로딩 스켈레톤, focus-visible 스타일
+   — CORS 403 버그 해결방향 결정 및 적용(우선순위 최상), nginx 정적자산 gzip,
+     로딩 스켈레톤, focus-visible 스타일, 찜하기 버튼 탭타겟/명도대비 수정
 
 ========================================================================
