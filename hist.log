@@ -1,6 +1,6 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (Lighthouse 베이스라인 실측 + CORS 403 버그 발견)
+마지막 갱신: 2026-07-27 (CORS 403 버그 수정 — 동적 Origin 검증)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -29,7 +29,8 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 19. PR #18 feat: 다크 헤더 브랜딩 + 별점/찜하기/바로구매
 20. PR #19 feat: 헤더 검색/장바구니뱃지/찜목록 + 결제·배송 상세 정보
 21. PR #20 perf: 라우트 코드 스플리팅 + gzip 압축 + lazy loading 보강, docs: 디자인/성능 로드맵 문서 신설
-22. (PR 예정) docs: Lighthouse 베이스라인 실측 결과 + CORS 403 버그 발견 기록
+22. PR #21 docs: Lighthouse 베이스라인 실측 결과 + CORS 403 버그 발견 기록
+23. (PR 예정) fix: CORS 403 버그 수정 (동적 Origin 검증 + nginx 포트 보존)
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -41,7 +42,45 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 
 [완료된 작업 상세]
 
-- Lighthouse 베이스라인 실측 + CORS 403 버그 발견 (2026-07-27, PR 예정)
+- CORS 403 버그 수정 (2026-07-27, PR 예정)
+  배경: 직전 세션에서 발견해둔 CORS 403 버그의 해결 방향을 사용자에게 3가지
+  옵션(A: nginx에서 Origin 헤더 무조건 제거 / B: 동적 Origin 검증 / C: Named
+  Tunnel 고정 도메인)으로 제시. A는 csrf().disable() 상태에서 CORS가 사실상
+  유일한 크로스사이트 방어막인데 이를 무력화하는 위험한 방법이라 배제 설명,
+  사용자가 B(동적 Origin 검증, 근본 해결)를 선택.
+  - global/security/OriginAwareCorsConfigurationSource 신규: 정적 화이트리스트
+    비교 대신 요청 Host와 Origin이 일치하면 same-origin으로 간주해 허용,
+    불일치 시 기존 화이트리스트(app.cors.allowed-origins)로 판단. SecurityConfig가
+    이를 사용하도록 교체.
+  - 구현 중 두 가지 함정을 실제 검증 과정에서 직접 찾아내 고침(둘 다 처음
+    구현했을 때는 못 잡을 뻔했음 — 실제 브라우저/curl로 "악성 사이트 위장"
+    시나리오까지 재현해보고서야 발견):
+    1. CorsConfigurationSource가 null을 반환하면 Spring이 preflight 아닌 실제
+       요청은 CORS 검증 없이 그냥 통과시켜버림 — "허용 안 함=null 반환"으로
+       짰다가 Origin: https://evil.example.com으로 테스트해보니 204가 나와서
+       발견. non-null CorsConfiguration을 항상 반환하되 허용 안 할 땐
+       allowedOrigins를 비워서 명시적으로 403 거부하도록 수정.
+    2. nginx의 proxy_set_header Host $host가 포트를 생략하는 데다가,
+       server.forward-headers-strategy=framework 상태에서 X-Forwarded-Proto만
+       있고 X-Forwarded-Host가 없으면 Spring의 ForwardedHeaderFilter가 포트를
+       스킴 기본값으로 재해석해버려서 비표준 포트 접속 시 same-origin 판정이
+       깨짐 (Cloudflare Tunnel의 기본 443 포트에선 안 드러나는 문제라 실제
+       배포 경로에선 영향 없었지만, 재발 방지 차원에서 같이 고침). →
+       frontend/nginx.conf에서 Host/X-Forwarded-Host를 전부 $http_host(포트
+       포함)로 전달하도록 수정.
+  - 테스트: OriginAwareCorsConfigurationSourceTest 4개 신규 작성 (Host/Origin
+    일치 허용, 화이트리스트 허용, 악성 Origin 거부, Origin 헤더 없음 시
+    영향없음). gradlew test 통과.
+  - 실환경 재검증: docker compose로 재빌드 후 curl(정상 same-origin 통과,
+    악성 Origin 403, 화이트리스트 경로 통과)과 claude-in-chrome(실제 브라우저
+    전체 흐름 — track/visit 204, auth/refresh 200, 이후 인증 API까지 정상)으로
+    확인.
+  - docs/DESIGN_PERFORMANCE_ROADMAP.md의 CORS 이슈 항목을 해결됨으로 갱신,
+    P0 백로그에서 제거.
+  ※ 작업 후 임시로 띄운 vibe-frontend-proxy-tmp(socat), docker compose 스택은
+    세션 종료 시 정리함.
+
+- Lighthouse 베이스라인 실측 + CORS 403 버그 발견 (2026-07-27, PR #21)
   배경: 로드맵 문서의 P0 항목 중 "Lighthouse 베이스라인 측정"을 사용자가 지목해서 진행.
   - docker compose로 프로덕션 빌드(db/backend/frontend)를 띄우고, alpine/socat으로
     frontend 컨테이너를 호스트 18090 포트로 임시 릴레이(util.log 패턴 재사용),
@@ -319,7 +358,7 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
    - 로깅/모니터링, 보안 점검 (/security-review)
 4. DB 백업 전략 마련 (현재 named volume만 있고 백업 스크립트 없음)
 5. 디자인/성능 고도화 P0 항목 진행 (docs/DESIGN_PERFORMANCE_ROADMAP.md 참고)
-   — CORS 403 버그 해결방향 결정 및 적용(우선순위 최상), nginx 정적자산 gzip,
-     로딩 스켈레톤, focus-visible 스타일, 찜하기 버튼 탭타겟/명도대비 수정
+   — nginx 정적자산 gzip, 로딩 스켈레톤, focus-visible 스타일, 찜하기 버튼
+     탭타겟/명도대비 수정 (CORS 버그는 2026-07-27에 해결 완료)
 
 ========================================================================
