@@ -14,6 +14,7 @@ import com.example.ecommerce.domain.cart.repository.CartRepository;
 import com.example.ecommerce.domain.coupon.entity.UserCoupon;
 import com.example.ecommerce.domain.coupon.repository.UserCouponRepository;
 import com.example.ecommerce.domain.delivery.entity.Delivery;
+import com.example.ecommerce.domain.delivery.enums.DeliveryStatus;
 import com.example.ecommerce.domain.delivery.repository.DeliveryRepository;
 import com.example.ecommerce.domain.order.dto.request.OrderCreateRequest;
 import com.example.ecommerce.domain.order.dto.response.OrderResponse;
@@ -35,12 +36,17 @@ import com.example.ecommerce.global.exception.ErrorCode;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -122,6 +128,23 @@ class OrderServiceTest {
                 .build();
         ReflectionTestUtils.setField(product, "id", id);
         return product;
+    }
+
+    private Order buildOrderWithId(Long id, User user, Product product) {
+        OrderItem item = OrderItem.builder()
+                .product(product)
+                .orderPrice(product.getPrice())
+                .quantity(1)
+                .build();
+        Order order = Order.builder()
+                .orderNumber("ORD-TEST-" + id)
+                .user(user)
+                .totalAmount(product.getPrice())
+                .discountAmount(BigDecimal.ZERO)
+                .orderItems(new ArrayList<>(List.of(item)))
+                .build();
+        ReflectionTestUtils.setField(order, "id", id);
+        return order;
     }
 
     // 배송이 시작되면(반품요청 포함) 배송 레코드가 항상 존재하므로, 배송
@@ -250,5 +273,46 @@ class OrderServiceTest {
         verify(stockService).reserve(10L, 3);
         assertThat(response.totalAmount()).isEqualByComparingTo(BigDecimal.valueOf(45000));
         assertThat(cart.getCartItems()).isEmpty();
+    }
+
+    @Test
+    void getMyOrders_batchFetchesDeliveries_notOnePerOrder() {
+        User user = buildUser(1L);
+        Product product = buildProduct(10L, BigDecimal.valueOf(10000));
+        Order orderWithDelivery = buildOrderWithId(2L, user, product);
+        Order orderWithoutDelivery = buildOrderWithId(3L, user, product);
+        Delivery delivery = mock(Delivery.class);
+        when(delivery.getOrder()).thenReturn(orderWithDelivery);
+        when(delivery.getStatus()).thenReturn(DeliveryStatus.IN_TRANSIT);
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(orderRepository.findByUser(user, pageable))
+                .thenReturn(new PageImpl<>(List.of(orderWithDelivery, orderWithoutDelivery), pageable, 2));
+        when(deliveryRepository.findByOrderIn(List.of(orderWithDelivery, orderWithoutDelivery)))
+                .thenReturn(List.of(delivery));
+
+        Page<OrderResponse> result = orderService.getMyOrders(1L, pageable);
+
+        Map<Long, OrderResponse> byOrderId = result.getContent().stream()
+                .collect(Collectors.toMap(OrderResponse::id, r -> r));
+        assertThat(byOrderId).hasSize(2);
+        assertThat(byOrderId.get(2L).deliveryStatus()).isEqualTo(DeliveryStatus.IN_TRANSIT);
+        assertThat(byOrderId.get(3L).deliveryStatus()).isNull();
+        verify(deliveryRepository).findByOrderIn(any());
+        verify(deliveryRepository, never()).findByOrder(any());
+    }
+
+    @Test
+    void getMyOrders_returnsEmptyPage_withoutQueryingDeliveries() {
+        User user = buildUser(1L);
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(orderRepository.findByUser(user, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        Page<OrderResponse> result = orderService.getMyOrders(1L, pageable);
+
+        assertThat(result.getContent()).isEmpty();
+        verify(deliveryRepository, never()).findByOrderIn(any());
     }
 }
