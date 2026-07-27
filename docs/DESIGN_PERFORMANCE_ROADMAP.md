@@ -54,7 +54,6 @@ Docker로 프로덕션 빌드(`docker compose up -d --build db backend frontend`
 
 | 항목 | 내용 | 비고 |
 | --- | --- | --- |
-| **CORS 화이트리스트 불일치로 POST 요청 403** | 4-1 참고 — 배포 안정성에 영향, 재현됨 | **심각도 높음**, 원인 파악 완료 |
 | nginx 정적 자산(JS/CSS) gzip 미적용 | 4-1 참고, 152KB(JS)+16KB(CSS) 절감 가능 | 오늘 백엔드 API는 압축했지만 정적 파일은 nginx가 서빙 — nginx.conf에 `gzip on` 필요 |
 | 로딩 스켈레톤 | 상품 카드/상세/주문목록 등 주요 리스트에 텍스트 대신 스켈레톤 UI | 체감 성능(perceived performance) 개선, 디자인 완성도 항목이기도 함 |
 | `:focus-visible` 스타일 정의 | 버튼/링크/인풋에 브랜드 컬러(`--color-accent`) 기반 포커스 링 추가 | 접근성, 구현 난이도 낮음 |
@@ -80,7 +79,7 @@ Docker로 프로덕션 빌드(`docker compose up -d --build db backend frontend`
 
 ## 4-1. 발견된 이슈 상세
 
-### 🔴 CORS 화이트리스트 불일치 시 모든 POST 요청 403 (배포 안정성)
+### ✅ (해결됨) CORS 화이트리스트 불일치 시 모든 POST 요청 403 (배포 안정성)
 
 Lighthouse 감사 중 `/api/v1/track/visit`(공개 엔드포인트, `permitAll`)이 403을 반환하는 걸
 발견 — 최초엔 Lighthouse 컨테이너의 특이 동작인 줄 알았으나, `claude-in-chrome`으로 실제
@@ -107,13 +106,37 @@ Origin: http://localhost:5173  (화이트리스트에 있음) → 204 (통과)
 막힘** (에러 메시지가 사용자에게 명확히 안 보일 수 있어 "그냥 안 되는 사이트"로
 보일 위험).
 
-**제안하는 해결 방향** (다음 세션에서 결정/적용):
-- 근본 해결: nginx가 프론트+API를 같은 origin으로 묶어주는 구조이므로, "same-origin
-  요청은 애초에 Origin 검증이 필요 없다"는 전제에 맞게 백엔드 CORS 설정을 same-origin
-  요청엔 관대하게(또는 nginx 선에서 Origin 헤더를 제거/정규화) 바꾸는 방법 검토.
-- 운영상 임시 해결: Named Tunnel(고정 도메인)로 전환해 URL 고정 — 이미
-  `infra_setup.md`/`hist.log`에 "다음 할 일"로 있던 항목이라 이 문제 해결의 우선순위를
-  높여줄 근거가 됨.
+**적용한 해결책 (2026-07-27, 사용자 확인 후 진행)**: "nginx가 프론트+API를 같은
+origin으로 묶어주는 구조이므로 same-origin 요청은 화이트리스트 없이도 항상 허용하고,
+정말 다른 origin(vite dev 서버, 악성 사이트 등)만 화이트리스트로 판단한다"는 방향
+(문서에 적어뒀던 두 방향 중 "방향 B: 동적 Origin 검증")으로 근본 해결함.
+
+- `OriginAwareCorsConfigurationSource`(신규, `global/security/`) — 정적 화이트리스트
+  비교 대신, 요청 자체의 Host(`request.getServerName()`/`getServerPort()`)와 `Origin`
+  헤더가 일치하면 same-origin으로 간주해 허용. 일치하지 않으면 기존처럼
+  `app.cors.allowed-origins` 화이트리스트로 판단.
+- `SecurityConfig`의 `corsConfigurationSource()`가 이 클래스를 사용하도록 교체.
+- **중요한 구현 함정**: `CorsConfigurationSource`가 `null`을 반환하면 Spring은 preflight가
+  아닌 실제 요청(GET/POST 등)에 대해 CORS 검증 자체를 건너뛰고 통과시켜 버림(클라이언트
+  측 방어로만 취급) — 처음엔 이 사실을 모르고 "허용 안 함 = null 반환"으로 구현했다가,
+  실제 브라우저로 크로스사이트 공격을 흉내내는 검증(Origin: `https://evil.example.com`)을
+  해보고 나서야 뚫려 있는 걸 발견함. **항상 non-null `CorsConfiguration`을 반환하되,
+  허용 안 할 땐 `allowedOrigins`를 비워서 Spring이 명시적으로 403 거부하도록** 수정.
+- **또 다른 함정**: nginx가 `proxy_set_header Host $host;`로 Host를 전달했는데, nginx의
+  `$host` 변수는 포트를 생략함 — 비표준 포트(예: 로컬 테스트용 임시 포트)로 접속하면
+  백엔드가 원래 포트를 몰라서 same-origin 판정이 어긋남. 게다가
+  `server.forward-headers-strategy=framework`가 활성화된 상태에서 `X-Forwarded-Proto`만
+  있고 `X-Forwarded-Host`가 없으면, Spring의 `ForwardedHeaderFilter`가 포트를 그 스킴의
+  기본 포트로 재해석해버려서 `Host` 헤더의 포트 정보가 무시되는 것도 확인함. →
+  `frontend/nginx.conf`에서 `Host`/`X-Forwarded-Host`를 전부 `$http_host`(포트 포함)로
+  전달하도록 수정.
+- **검증**: 단위 테스트 4개(`OriginAwareCorsConfigurationSourceTest`) 작성 —
+  Host와 Origin이 일치하는 경우 허용, 화이트리스트에 있는 경우 허용, 어느 쪽에도 안
+  걸리는 경우(악성 사이트 시뮬레이션) 거부, Origin 헤더 자체가 없는 경우(서버-서버 호출)
+  영향 없음. `gradlew test` 통과. 추가로 Docker 컨테이너를 재기동해 실제 환경에서
+  curl(정상 same-origin 통과 / 악성 Origin 위장 시 403 실제로 확인 / 화이트리스트 경로
+  통과)과 `claude-in-chrome`(실제 브라우저 전체 흐름 — `track/visit`, `auth/refresh`,
+  이후 인증 API까지 전부 정상)으로 재확인 완료.
 
 ### 🟡 nginx가 정적 자산(JS/CSS)에 gzip을 안 걸어줌
 
