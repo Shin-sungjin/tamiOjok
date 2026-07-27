@@ -50,13 +50,8 @@ Docker로 프로덕션 빌드(`docker compose up -d --build db backend frontend`
 
 ## 4. 다음 단계 백로그
 
-### P0 — 다음 세션에 바로 착수 가능 (실측/재현으로 확인된 것 우선)
-
-| 항목 | 내용 | 비고 |
-| --- | --- | --- |
-| `:focus-visible` 스타일 정의 | 버튼/링크/인풋에 브랜드 컬러(`--color-accent`) 기반 포커스 링 추가 | 접근성, 구현 난이도 낮음 |
-| 찜하기 버튼 tap-target 겹침 | `.wishlist-btn`(32x32)이 카드 링크(`<a>`)와 겹쳐 Lighthouse가 "부적절한 탭 타겟"으로 지적 | 모바일 터치 정확도 문제, 실제 UX에도 영향 |
-| 상품 카드 텍스트 명도 대비 부족 | `.product-card__image-placeholder`(3.77:1), `.rating-stars__count`(4.15:1) — WCAG AA 기준(4.5:1) 미달 | `--color-text-muted` 톤 조정 또는 해당 요소만 진하게 |
+P0 백로그(Lighthouse 베이스라인 실측으로 발견된 항목들)는 전부 처리 완료 — 상세는
+4-1 참고. 다음은 P1부터.
 
 ### P1 — 조사/의사결정 후 진행
 
@@ -172,12 +167,41 @@ skeleton-shimmer`, `.skeleton`/`.skeleton-line`, `prefers-reduced-motion` 대응
 /쿠폰목록(카드리스트)/관리자 대시보드(통계 타일+차트 패널) 4개 유형 전부 실제 레이아웃과
 일치, 지연 해제 후 정상적으로 실제 데이터로 전환되는 것도 확인.
 
-### 🟡 접근성: 명도 대비 부족 + 찜하기 버튼 탭 타겟 겹침
+### ✅ (해결됨) 접근성: 명도 대비 부족 + 찜하기 버튼 탭 타겟 + focus-visible 부재
 
 - `--color-text-muted`(#857b6f)를 밝은 배경 위 작은 텍스트(품절 placeholder, 리뷰 개수)에
   쓸 때 WCAG AA 기준(4.5:1)에 못 미침 (측정값 3.77~4.15:1).
 - `.wishlist-btn`(32×32)이 상품 카드 전체를 감싸는 `<a>` 링크와 영역이 겹쳐서, 모바일에서
   찜하기를 누르려다 상품 상세로 이동해버릴 수 있음.
+- `:focus-visible` 스타일이 전혀 정의돼 있지 않아 브라우저 기본값에 의존, 일부 입력
+  필드는 `:focus { outline: none; }`로 아예 지워버려서 키보드 사용자가 포커스 위치를
+  알기 어려웠음.
+
+**적용한 해결책 (2026-07-27)**:
+- `--color-text-muted`를 `#857b6f` → `#756b60`으로 어둡게 조정. 흰 배경 대비
+  4.15:1→5.21:1, `--color-neutral-soft` 배경 대비 3.77:1→4.74:1로 계산상 WCAG AA(4.5:1)
+  통과 확인 (상대휘도 공식으로 직접 계산 후 적용 — Lighthouse가 원래 리포트한 4.15:1
+  수치와 계산값이 일치하는 것으로 공식 적용이 맞았음을 교차 검증). 전역 토큰이라
+  카드/폼라벨/통계타일 등 muted 텍스트를 쓰는 모든 곳에 일괄 적용됨.
+- `.wishlist-btn`을 32px → 44px로 확대(Google/WCAG 권장 최소 터치 타겟), 위치를
+  카드 모서리에서 살짝 안쪽으로(10px→8px) 조정하고 그림자 추가로 이미지 위에서
+  더 잘 구분되도록 함.
+- `:focus-visible` 전역 규칙 추가(`outline: 2px solid var(--color-accent)`).
+  `outline: none`으로 지우던 3개 입력 필드 그룹은 `:focus-visible` 전용 규칙을
+  별도로 추가해 키보드 포커스 시에만 outline이 되살아나도록 함 (마우스 클릭 시엔
+  기존처럼 border-color 변화만 유지).
+- **구현 중 발견한 부수 버그**: `.product-card`/`.card` 내부에서 카드 전체를 감싸는
+  `<a>`가 block 자식(div/h2/p)을 포함하는데도 `display` 기본값(inline)인 채로
+  있어서, 브라우저가 이를 익명 블록 박스로 쪼개 렌더링 — 그 결과 keyboard focus
+  outline이 카드 테두리를 온전히 감싸지 못하고 있었음 (focus-visible 작업 중
+  실제 브라우저로 확인하다가 발견). `.product-card > a`, `.card > a`에
+  `display: block` 추가로 수정.
+
+**검증**: Docker `tsc -b && vite build` 통과. claude-in-chrome으로 실제 키보드 Tab
+포커스 이동을 재현해 `document.activeElement`의 computed style로 outline이
+`#e2a610` 2px solid로 정확히 적용되는 것을 확인하고, 스크린샷으로 카드 테두리를
+따라 골드 링이 온전한 사각형으로 보이는 것까지 시각 확인. 찜하기 버튼 확대도
+스크린샷으로 확인.
 
 ### 🟢 `robots.txt` 없음
 
