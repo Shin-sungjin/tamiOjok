@@ -4,7 +4,7 @@
   --color-neutral-soft: #f5f4f1;
   --color-border: #e6e3dc;
   --color-text: #2b2621;
-  --color-text-muted: #857b6f;
+  --color-text-muted: #756b60;
   --color-primary: #c1442a;
   --color-primary-hover: #a83920;
   --color-primary-soft: #f7e3da;
@@ -54,6 +54,25 @@ button {
 img {
   max-width: 100%;
   display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* 아래 입력 필드들은 :focus에서 outline을 지우고 border-color만 바꾸는데,
+   :focus-visible은 :focus와 동일한 우선순위라 이 클래스 선택자들을 그대로
+   다시 지정해야 키보드 포커스 시 outline이 되살아남 (전역 규칙은 이 클래스들의
+   특정도를 못 이김). */
+.header__search input:focus-visible,
+.form-page input:focus-visible,
+.form-page textarea:focus-visible,
+.form-page select:focus-visible,
+.admin-product-form__fields input:focus-visible,
+.admin-product-form__fields textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .header {
@@ -321,6 +340,13 @@ main {
   box-shadow: 0 6px 16px rgba(61, 43, 31, 0.1);
 }
 
+.product-card > a {
+  /* 기본값(inline)인 채로 두면 block 자식(div/h2/p)을 감싸면서 익명 박스로
+     쪼개져 카드 전체를 감싸는 하나의 사각형 outline이 그려지지 않음 —
+     키보드 포커스 링이 카드 테두리를 따라 온전히 보이도록 block으로 지정. */
+  display: block;
+}
+
 .product-card__image {
   aspect-ratio: 1 / 1;
   width: 100%;
@@ -383,16 +409,19 @@ main {
 
 .wishlist-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   z-index: 1;
-  width: 32px;
-  height: 32px;
+  /* 44px는 터치 타겟 최소 권장 크기(Google/WCAG) — 카드 전체를 덮는 <a>와
+     인접해 있어 오탭 위험이 있었음(Lighthouse tap-target 감사에서 지적). */
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
   border: 1px solid var(--color-border);
   background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-card);
   color: var(--color-text-muted);
-  font-size: 1.05rem;
+  font-size: 1.3rem;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -867,6 +896,13 @@ main {
   border-radius: var(--radius-md);
   padding: clamp(12px, 3vw, 16px);
   box-shadow: var(--shadow-card);
+}
+
+.card > a {
+  /* .product-card > a와 동일한 이유 — 카드 전체를 감싸는 링크가 block 자식을
+     포함할 때 inline 상태로 두면 키보드 포커스 링이 카드 테두리를 온전히
+     감싸지 못함. */
+  display: block;
 }
 
 .card h3 {

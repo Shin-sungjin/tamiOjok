@@ -1,6 +1,6 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (로딩 스켈레톤 UI 적용)
+마지막 갱신: 2026-07-27 (focus-visible + 찜하기 탭타겟/명도대비 — P0 백로그 완료)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -32,7 +32,8 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 22. PR #21 docs: Lighthouse 베이스라인 실측 결과 + CORS 403 버그 발견 기록
 23. PR #22 fix: CORS 403 버그 수정 (동적 Origin 검증 + nginx 포트 보존)
 24. PR #23 perf: nginx 정적자산(JS/CSS) gzip 압축 적용
-25. (PR 예정) feat: 로딩 스켈레톤 UI 적용 (17개 페이지)
+25. PR #24 feat: 로딩 스켈레톤 UI 적용 (17개 페이지)
+26. (PR 예정) fix: focus-visible 스타일 + 찜하기 버튼 탭타겟/명도대비 개선
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -44,7 +45,35 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 
 [완료된 작업 상세]
 
-- 로딩 스켈레톤 UI 적용 (2026-07-27, PR 예정)
+- focus-visible 스타일 + 찜하기 버튼 탭타겟/명도대비 개선 (2026-07-27, PR 예정)
+  배경: 사용자가 로드맵 P0 백로그의 남은 두 항목(focus-visible, 찜하기 버튼
+  탭타겟/명도대비)을 한 번에 진행해달라고 요청 — 이걸로 P0 백로그 전부 완료.
+  - --color-text-muted를 #857b6f → #756b60으로 조정 (상대휘도 공식 직접
+    계산: 흰 배경 4.15→5.21:1, --color-neutral-soft 배경 3.77→4.74:1, WCAG
+    AA 4.5:1 통과. 계산값이 Lighthouse가 리포트한 4.15:1과 정확히 일치해서
+    공식 적용이 맞았음을 교차검증함). 전역 토큰이라 muted 텍스트 쓰는 모든
+    곳에 일괄 적용됨.
+  - .wishlist-btn 32px → 44px 확대(Google/WCAG 최소 터치 타겟 권장값),
+    위치 미세조정 + 그림자 추가.
+  - :focus-visible 전역 규칙 추가(outline: 2px solid --color-accent).
+    outline: none으로 지우던 3개 입력 필드 그룹(헤더 검색, form-page,
+    admin-product-form)은 :focus-visible 전용 규칙을 별도로 추가해서
+    키보드 포커스일 때만 outline이 살아나도록 함(마우스 클릭 시엔 기존
+    border-color 변화만 유지).
+  - 구현 중 실제 브라우저로 확인하다가 부수 버그 발견: .product-card/.card를
+    감싸는 <a>가 block 자식(div/h2/p)을 포함하는데 display 기본값(inline)
+    상태라 브라우저가 익명 블록박스로 쪼개 렌더링 → keyboard focus
+    outline이 카드 테두리를 온전히 못 감싸고 있었음. .product-card > a,
+    .card > a에 display: block 추가로 수정.
+  - 검증: Docker tsc -b && vite build 통과. claude-in-chrome으로 실제 Tab
+    키 포커스 이동 재현 — document.activeElement의 computed style로 outline
+    #e2a610 2px solid 적용 확인, 스크린샷으로 카드 테두리를 감싸는 골드
+    링과 확대된 찜하기 버튼을 육안 확인.
+  - docs/DESIGN_PERFORMANCE_ROADMAP.md 해당 항목 해결됨으로 갱신, P0 백로그
+    전부 클리어(다음은 P1부터).
+  ※ 임시 docker 리소스(vibe-frontend-proxy-tmp, compose 스택)는 세션 종료 시 정리.
+
+- 로딩 스켈레톤 UI 적용 (2026-07-27, PR #24)
   배경: 로드맵 P0 백로그 중 사용자가 다음 항목으로 지목. 로딩 상태가 전부
   <p>불러오는 중...</p> 텍스트 한 줄이던 17곳을 스켈레톤 UI로 교체.
   - index.css에 shimmer 애니메이션(@keyframes skeleton-shimmer, .skeleton/
@@ -399,8 +428,9 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
    - CI/CD 구성 (현재는 수동 docker compose build/up)
    - 로깅/모니터링, 보안 점검 (/security-review)
 4. DB 백업 전략 마련 (현재 named volume만 있고 백업 스크립트 없음)
-5. 디자인/성능 고도화 P0 항목 진행 (docs/DESIGN_PERFORMANCE_ROADMAP.md 참고)
-   — focus-visible 스타일, 찜하기 버튼 탭타겟/명도대비 수정 (CORS 버그,
-     nginx gzip, 로딩 스켈레톤은 2026-07-27에 해결 완료)
+5. 디자인/성능 고도화 P1 백로그 진행 (docs/DESIGN_PERFORMANCE_ROADMAP.md 참고)
+   — P0는 2026-07-27에 전부 해결 완료(CORS 버그, nginx gzip, 로딩 스켈레톤,
+     focus-visible, 찜하기 탭타겟/명도대비). P1: 이미지 최적화 파이프라인,
+     브랜드 파비콘/아이콘, 빈 상태(empty state) 보강, API 응답 캐싱
 
 ========================================================================
