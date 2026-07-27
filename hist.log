@@ -1,7 +1,7 @@
 ========================================================================
 tamiOjok 프로젝트 - 진행 이력 (hist.log)
-마지막 갱신: 2026-07-27 (사용자 실사용 리포트 버그 6건 수정 — 찜목록 계정분리/
-장바구니 재고검증/주문상태 통합/반품사유 UI/재입고 상태복구/장바구니 배지)
+마지막 갱신: 2026-07-27 (주문생성/리뷰/문의 테스트 커버리지 + 이 프로젝트 최초
+컨트롤러 테스트 도입 — 서비스 15개 + 컨트롤러 9개, 총 24개 신규)
 ========================================================================
 
 [전체 타임라인 요약 (프로젝트 생성 ~ 현재, 전부 2026-07-23 ~ 2026-07-24)]
@@ -44,6 +44,9 @@ tamiOjok 프로젝트 - 진행 이력 (hist.log)
 33. (PR 예정) fix: 사용자 실사용 리포트 버그 6건 (찜목록 계정별 분리, 장바구니
     재고검증, 주문상태 표시 통합, 반품사유 선택 UI, 재입고 시 품절상태 자동
     복구, 장바구니 배지 표시방식 변경) + 테스트 11개 추가
+34. (PR 예정) test: 주문 생성/리뷰/문의 테스트 커버리지 24개 추가 (서비스 15개 +
+    이 프로젝트 최초의 컨트롤러 MockMvc 테스트 9개), 공유 인증 헬퍼
+    support/TestAuthentication 신설
 
 백엔드 도메인 9종(Auth/User, Product/Stock, Order, Payment, Delivery, Inquiry,
 Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론트엔드 기능 확장
@@ -52,6 +55,48 @@ Review, Cart, Coupon) → 문서/DB → 프론트엔드 스캐폴딩 → 프론�
 "무슨 순서로, 왜, 어떤 이슈가 있었는지"에 집중해서 기록함.
 
 ---
+
+- 주문 생성/리뷰/문의 테스트 커버리지 + 컨트롤러 테스트 도입 (2026-07-27, PR 예정)
+  배경: quest.log 로드맵 3번 항목의 남은 3개 도메인(주문 생성/리뷰/문의) 테스트
+  커버리지 작업. 재고/쿠폰/결제(2026-07-27 첫 배치)와 달리 이번엔 코드부터
+  바로 짜지 않고 superpowers:brainstorming으로 범위/우선순위를 먼저 확인한 뒤
+  superpowers:writing-plans로 설계 문서(docs/superpowers/specs/2026-07-27-
+  order-review-inquiry-test-coverage-design.md)와 태스크 단위 구현 계획
+  (docs/superpowers/plans/2026-07-27-order-review-inquiry-test-coverage.md)을
+  먼저 작성하고, 태스크별로 커밋을 쪼개 진행함(subagent-driven-development
+  방식 — 태스크마다 독립 검증 후 다음 태스크로 진행).
+  - OrderServiceTest: createOrder 3개(정상 생성+재고예약, 쿠폰 적용 시 할인
+    반영, 쿠폰이 본인 소유가 아닐 때 COUPON_ACCESS_DENIED) + createOrderFromCart
+    2개(장바구니 기반 생성 성공, 장바구니가 비어있을 때 예외) 총 5개 추가.
+  - ReviewServiceTest 6개, InquiryServiceTest 4개 신규 작성 — 두 도메인 모두
+    이번이 최초의 서비스 계층 테스트.
+  - 이 프로젝트 최초로 컨트롤러(MockMvc) 테스트 도입: OrderControllerTest/
+    ReviewControllerTest/InquiryControllerTest 각 3개(총 9개) — 라우팅이
+    실제로 컨트롤러까지 연결되는지, 인증 없는 요청이 401로 막히는지,
+    GlobalExceptionHandler가 도메인 예외를 올바른 HTTP 상태코드로 매핑하는지
+    검증. 3개 컨트롤러 테스트가 공유하는 인증 헬퍼
+    src/test/.../support/TestAuthentication 신설 — CustomUserDetails 기반
+    인증 정보를 MockMvc 요청(SecurityMockMvcRequestPostProcessors)에 주입.
+  - 신규 발견(다음에 참고): 컨트롤러 테스트에서 요청 바디 직렬화용
+    `@Autowired ObjectMapper` 필드에 애초 계획서엔 Jackson 2
+    (`com.fasterxml.jackson.databind.ObjectMapper`)로 적혀 있었으나 실제로는
+    컴파일/기동 자체가 안 됨 — Spring Boot 4.1의 Jackson 자동설정이
+    `spring-boot-autoconfigure`가 아니라 별도 `spring-boot-jackson` 모듈로
+    이동했고, 이 모듈은 Jackson 3(`tools.jackson.databind.ObjectMapper`) 빈만
+    등록함(gradle 캐시의 실제 jar를 열어 spring-boot-autoconfigure-4.1.0.jar에
+    Jackson 클래스가 전혀 없는 것까지 확인). Task 2(OrderControllerTest)에서
+    처음 이 문제를 만나 `tools.jackson.databind.ObjectMapper`로 바꿔 해결하고,
+    이후 Task 4(ReviewControllerTest)/Task 6(InquiryControllerTest)에도 동일하게
+    선반영함. `@AutoConfigureMockMvc`도 Spring Boot 4.1부터
+    `org.springframework.boot.webmvc.test.autoconfigure` 패키지로 이동된 것은
+    계획 수립 단계에서 미리 확인해 둔 대로 세 컨트롤러 테스트 전부 이 신규
+    경로로 import.
+  - 검증: ./gradlew test --rerun-tasks 전체 통과, BUILD SUCCESSFUL. JUnit XML
+    결과 집계 기준 전체 67개 테스트(신규 24개 포함) 전부 성공/실패 0/에러 0.
+    태스크마다 독립적으로 code-review를 받아 Critical/Important 없음 확인
+    (일부 Minor는 커버리지 제안 수준이라 의도적으로 보류).
+  ※ Task 7(본 항목, 최종 검증+문서화)은 controller가 별도로 전체 브랜치
+    리뷰를 진행하므로 push/PR/머지는 이번 세션에서 하지 않음.
 
 - 사용자 실사용 리포트 버그 6건 수정 (2026-07-27, PR 예정)
   배경: quest.log의 "전체 기능 검증" 이후 사용자가 Docker로 띄운 앱을 직접
